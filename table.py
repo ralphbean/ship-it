@@ -5,10 +5,11 @@ import time
 import txrequests
 import urwid
 
-from twisted.internet import defer
+from twisted.internet import defer, utils
 
 # TODO - make this configurable
-LOGSIZE = 10
+LOGSIZE = 20
+THREADS = 10
 
 pkgdb_url = 'https://admin.fedoraproject.org/pkgdb'
 anitya_url = 'https://release-monitoring.org'
@@ -17,8 +18,8 @@ anitya_url = 'https://release-monitoring.org'
 def cols(a, b, c):
     return urwid.Columns([
         (40, urwid.Text(a)),
-        (12, urwid.Text(b, align='right')),
-        urwid.Text(c, wrap='clip')
+        (13, urwid.Text(b, align='right')),
+        (32, urwid.Text(c, align='right')),
     ], dividechars=1)
 
 legend = cols(u'package', u'upstream', u'rawhide')
@@ -41,9 +42,11 @@ def log(msg):
 
 
 class Row(urwid.WidgetWrap):
-    def __init__(self, a, b, c):
+    def __init__(self, name='package', upstream='', rawhide='', **kwargs):
+        if isinstance(rawhide, tuple):
+            rawhide = '-'.join(rawhide)
         super(Row, self).__init__(
-            urwid.AttrMap(cols(a, b, c), None, 'reversed'))
+            urwid.AttrMap(cols(name, upstream, rawhide), None, 'reversed'))
 
     def selectable(self):
         return True
@@ -52,6 +55,33 @@ class Row(urwid.WidgetWrap):
     def keypress(self, size, key):
         yield log("Received keypress %r %r" % (size, key))
         # TODO - does this need to return the key to chain in urwid land?
+
+
+@defer.inlineCallbacks
+def build_nvr_dict(repoid=None):
+    cmdline = ["/usr/bin/repoquery",
+               "--quiet",
+               "--archlist=src",
+               "--all",
+               "--qf",
+               "'%{name}\t%{version}\t%{release}'"]
+
+    if repoid:
+        cmdline.append('--repoid=%s' % repoid)
+
+    start = time.time()
+    yield log("Running %r" % ' '.join(cmdline))
+    stdout = yield utils.getProcessOutput(cmdline[0], cmdline[1:])
+    delta = time.time() - start
+    yield log("Done with repoquery in %is" % delta)
+
+    for line in stdout.split("\n"):
+        line = line.strip().strip("'")
+        if line:
+            name, version, release = line.split("\t")
+            nvr_dict[name] = (version, release)
+
+    yield log("Done building nvr dict with %i items" % len(nvr_dict))
 
 
 @defer.inlineCallbacks
@@ -80,19 +110,24 @@ def load_pkgdb_packages():
         if project.get('version'):
             package['upstream'] = project['version']
         else:
-            package['upstream'] = 'not found'
+            package['upstream'] = '(not found)'
+        yield log('Found upstream %s for %s' % (package['upstream'], package['name']))
 
-        rows.append(Row(package['name'], package['upstream'], ''))
-        yield log('Found %s for %s' % (package['upstream'], package['name']))
+    for package in packages:
+        package['rawhide'] = nvr_dict.get(package['name'], '(not found)')
+        yield log('Found rawhide %s for %s (of %i packages in the nvr_dict)' % (package['rawhide'], package['name'], len(nvr_dict)))
+        key = nvr_dict.keys()[0]
+
+    for package in packages:
+        rows.append(Row(**package))
 
     delta = time.time() - start
     yield log('Done loading data in %is' % delta)
 
 
-
-
 # XXX - global state
 rows = []
+nvr_dict = {}
 
 listbox = urwid.ListBox(rows)
 right = urwid.Frame(listbox, header=legend)
@@ -113,9 +148,10 @@ palette = [
 #epollreactor.install()
 
 # TODO -- close this down nicely at shutdown
-http_session = txrequests.Session()
+http_session = txrequests.Session(maxthreads=THREADS)
 
 from twisted.internet import reactor
 reactor.callWhenRunning(load_pkgdb_packages)
+reactor.callWhenRunning(build_nvr_dict)
 mainloop = urwid.MainLoop(main, palette, event_loop=urwid.TwistedEventLoop())
 mainloop.run()
