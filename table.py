@@ -2,7 +2,7 @@ import collections
 import datetime
 import time
 
-import requests
+import txrequests
 import urwid
 
 from twisted.internet import defer
@@ -59,8 +59,11 @@ def load_pkgdb_packages():
     url = pkgdb_url + '/api/packager/package/' + username
     yield log('Loading packages from ' + url)
     start = time.time()
-    resp = requests.get(url)
-    pkgdb = resp.json()
+
+    with txrequests.Session() as session:
+        resp = yield session.get(url)
+        pkgdb = resp.json()
+
     packages = [package for package in pkgdb['point of contact']]
     for package in packages:
         rows.append(Row(package['name'], '', ''))
@@ -85,8 +88,10 @@ palette = [
     ('reversed', 'standout', '')
 ]
 
-from twisted.internet import epollreactor
-epollreactor.install()
+# No need to install this, since txrequests does it at import-time.
+#from twisted.internet import epollreactor
+#epollreactor.install()
+
 from twisted.internet import reactor
 reactor.callWhenRunning(load_pkgdb_packages)
 mainloop = urwid.MainLoop(main, palette, event_loop=urwid.TwistedEventLoop())
