@@ -11,14 +11,15 @@ from twisted.internet import defer
 LOGSIZE = 10
 
 pkgdb_url = 'https://admin.fedoraproject.org/pkgdb'
+anitya_url = 'https://release-monitoring.org'
 
 
 def cols(a, b, c):
     return urwid.Columns([
-        (25, urwid.Text(a)),
-        (10, urwid.Text(b)),
+        (40, urwid.Text(a)),
+        (12, urwid.Text(b, align='right')),
         urwid.Text(c, wrap='clip')
-    ])
+    ], dividechars=1)
 
 legend = cols(u'package', u'upstream', u'rawhide')
 
@@ -60,15 +61,34 @@ def load_pkgdb_packages():
     yield log('Loading packages from ' + url)
     start = time.time()
 
-    with txrequests.Session() as session:
-        resp = yield session.get(url)
-        pkgdb = resp.json()
+    resp = yield http_session.get(url)
+    pkgdb = resp.json()
 
     packages = [package for package in pkgdb['point of contact']]
-    for package in packages:
-        rows.append(Row(package['name'], '', ''))
     delta = time.time() - start
     yield log('Found %i packages in %is' % (len(packages), delta))
+
+    deferreds = []
+    for package in packages:
+        url = anitya_url + '/api/project/Fedora/' + package['name']
+        deferreds.append(http_session.get(url))
+
+    for d, package in zip(deferreds, packages):
+        response = yield d
+        project = response.json()
+
+        if project.get('version'):
+            package['upstream'] = project['version']
+        else:
+            package['upstream'] = 'not found'
+
+        rows.append(Row(package['name'], package['upstream'], ''))
+        yield log('Found %s for %s' % (package['upstream'], package['name']))
+
+    delta = time.time() - start
+    yield log('Done loading data in %is' % delta)
+
+
 
 
 # XXX - global state
@@ -91,6 +111,9 @@ palette = [
 # No need to install this, since txrequests does it at import-time.
 #from twisted.internet import epollreactor
 #epollreactor.install()
+
+# TODO -- close this down nicely at shutdown
+http_session = txrequests.Session()
 
 from twisted.internet import reactor
 reactor.callWhenRunning(load_pkgdb_packages)
