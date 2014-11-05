@@ -10,6 +10,7 @@ from twisted.internet import defer, utils
 # TODO - make this configurable
 LOGSIZE = 20
 THREADS = 10
+YUM_CONF = 'conf/yum.conf'
 
 pkgdb_url = 'https://admin.fedoraproject.org/pkgdb'
 anitya_url = 'https://release-monitoring.org'
@@ -44,7 +45,8 @@ def log(msg):
 class Row(urwid.WidgetWrap):
     def __init__(self, name='package', upstream='', rawhide='', **kwargs):
         if isinstance(rawhide, tuple):
-            rawhide = '-'.join(rawhide)
+            version, release = rawhide
+            rawhide = version
         super(Row, self).__init__(
             urwid.AttrMap(cols(name, upstream, rawhide), None, 'reversed'))
 
@@ -58,9 +60,10 @@ class Row(urwid.WidgetWrap):
 
 
 @defer.inlineCallbacks
-def build_nvr_dict(repoid=None):
+def build_nvr_dict(repoid='rawhide'):
     cmdline = ["/usr/bin/repoquery",
                "--quiet",
+               "--config=%s" % YUM_CONF,
                "--archlist=src",
                "--all",
                "--qf",
@@ -116,7 +119,6 @@ def load_pkgdb_packages():
     for package in packages:
         package['rawhide'] = nvr_dict.get(package['name'], '(not found)')
         yield log('Found rawhide %s for %s (of %i packages in the nvr_dict)' % (package['rawhide'], package['name'], len(nvr_dict)))
-        key = nvr_dict.keys()[0]
 
     for package in packages:
         rows.append(Row(**package))
