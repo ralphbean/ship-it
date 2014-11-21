@@ -71,10 +71,10 @@ class Row(urwid.WidgetWrap):
     def selectable(self):
         return True
 
-    @defer.inlineCallbacks
     def keypress(self, size, key):
-        yield log("Received keypress %r %r" % (size, key))
+        log("Received keypress %r %r" % (size, key))
         # TODO - does this need to return the key to chain in urwid land?
+        return key
 
 
 @defer.inlineCallbacks
