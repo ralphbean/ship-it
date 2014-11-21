@@ -153,7 +153,7 @@ palette = [
 http_session = txrequests.Session(maxthreads=THREADS)
 
 from twisted.internet import reactor
-reactor.callWhenRunning(load_pkgdb_packages)
 reactor.callWhenRunning(build_nvr_dict)
+reactor.callWhenRunning(load_pkgdb_packages)
 mainloop = urwid.MainLoop(main, palette, event_loop=urwid.TwistedEventLoop())
 mainloop.run()
