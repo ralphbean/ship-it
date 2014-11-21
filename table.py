@@ -29,8 +29,19 @@ def cols(a, b, c):
 legend = cols(u'package', u'upstream', u'rawhide')
 
 logitems = collections.deque(maxlen=LOGSIZE)
-status = urwid.BoxAdapter(urwid.ListBox(logitems), LOGSIZE)
-status = urwid.LineBox(status, 'Logs')
+logbox = urwid.BoxAdapter(urwid.ListBox(logitems), LOGSIZE)
+logbox = urwid.LineBox(logbox, 'Logs')
+
+
+class StatusBar(urwid.Text):
+    default = '    '.join([
+        'q - Quit',
+        '/ - Search',
+    ])
+    def set_text(self, markup=default):
+        super(StatusBar, self).set_text('    ' + markup)
+
+statusbar = StatusBar('Initializing...')
 
 
 def log(msg):
@@ -39,9 +50,15 @@ def log(msg):
 
     # We need to asynchronously update our logs while other inlineCallbacks
     # block are ongoing, so we do...
+    d = noop()
+    d.addCallback(lambda x: mainloop.draw_screen())
+    return d
+
+
+def noop():
+    """ Returns a no-op twisted deferred. """
     d = defer.Deferred()
     reactor.callLater(0, d.callback, None)
-    d.addCallback(lambda x: mainloop.draw_screen())
     return d
 
 
@@ -57,11 +74,23 @@ class FilterableListBox(urwid.ListBox):
             if self.searchterm in item.name:
                 if item not in self.reference:
                     self.reference.insert(i, item)
-                    log("inserted item with %r" % item.name)
 
         for item in list(self.reference):
             if self.searchterm not in item.name:
                 self.reference.remove(item)
+
+        if self.searchmode:
+            statusbar.set_text('/' + self.searchterm)
+
+    def start_search(self):
+        self.searchmode, self.searchterm = True, ''
+        self.filter_results()
+
+    def end_search(self, filter=True):
+        self.searchmode, self.searchterm = False, ''
+        if filter:
+            self.filter_results()
+        statusbar.set_text()
 
     def set_archetypes(self, archetypes):
         self.archetypes = copy.copy(archetypes)
@@ -71,30 +100,23 @@ class FilterableListBox(urwid.ListBox):
             # Then we are not fully initialized, so just let keypresses pass
             return super(FilterableListBox, self).keypress(size, key)
 
-        log("List got keypress %r %r" % (size, key))
-        if key == 'd':
-            self.reference.pop(0)
-        elif key == '/':
-            self.searchmode, self.searchterm = True, ''
+        if key == '/':
+            self.start_search()
         elif key == 'esc':
-            self.searchmode, self.searchterm = False, ''
-            self.filter_results()
+            self.end_search()
         elif key == 'enter':
-            self.searchmode = False
-            self.filter_results()
+            self.end_search(filter=False)
         elif key == 'backspace' and self.searchmode:
             if self.searchterm:
                 self.searchterm = self.searchterm[:-1]
-                self.filter_results()
             else:
-                pass  # TODO -- ring terminal bell here
+                self.end_search()
+            self.filter_results()
         elif self.searchmode:
             self.searchterm += key
             self.filter_results()
         else:
-            log("searchterm is %r, len archetypes %r, len ref %r" % (self.searchterm, len(self.archetypes), len(self.reference)))
             return super(FilterableListBox, self).keypress(size, key)
-        log("searchterm is %r, len archetypes %r, len ref %r" % (self.searchterm, len(self.archetypes), len(self.reference)))
 
 
 class Row(urwid.WidgetWrap):
@@ -108,7 +130,7 @@ class Row(urwid.WidgetWrap):
     def set_rawhide(self, value):
         rawhide = 2  # Column number
         self._w.original_widget.contents[rawhide][0].set_text(value)
-        return log('Set %r rawhide to %r' % (self.name, self.get_rawhide()))
+        return noop()
 
     def get_rawhide(self):
         rawhide = 2  # Column number
@@ -117,7 +139,7 @@ class Row(urwid.WidgetWrap):
     def set_upstream(self, value):
         upstream = 1  # Column number
         self._w.original_widget.contents[upstream][0].set_text(value)
-        return log('Set %r upstream to %r' % (self.name, self.get_upstream()))
+        return noop()
 
     def get_upstream(self):
         upstream = 1  # Column number
@@ -198,6 +220,7 @@ def load_pkgdb_packages():
     listbox.set_archetypes(rows)
 
     delta = time.time() - start
+    statusbar.set_text()
     yield log('Done loading data in %is' % delta)
 
 
@@ -212,7 +235,7 @@ right = urwid.Frame(listbox, header=legend)
 left = urwid.SolidFill('x')
 
 columns = urwid.Columns([(12, left), right], 2)
-main = urwid.Frame(columns, footer=status)
+main = urwid.Frame(urwid.Frame(columns, footer=logbox), footer=statusbar)
 
 
 palette = [
