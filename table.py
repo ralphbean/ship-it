@@ -1,4 +1,7 @@
+from __future__ import print_function
+
 import collections
+import copy
 import datetime
 import time
 
@@ -40,6 +43,58 @@ def log(msg):
     reactor.callLater(0, d.callback, None)
     d.addCallback(lambda x: mainloop.draw_screen())
     return d
+
+
+class FilterableListBox(urwid.ListBox):
+    def __init__(self, items):
+        self.reference = items
+        self.set_archetypes([])
+        self.searchmode, self.searchterm = False, None
+        super(FilterableListBox, self).__init__(items)
+
+    def filter_results(self):
+        for i, item in enumerate(self.archetypes):
+            if self.searchterm in item.name:
+                if item not in self.reference:
+                    self.reference.insert(i, item)
+                    log("inserted item with %r" % item.name)
+
+        for item in list(self.reference):
+            if self.searchterm not in item.name:
+                self.reference.remove(item)
+
+    def set_archetypes(self, archetypes):
+        self.archetypes = copy.copy(archetypes)
+
+    def keypress(self, size, key):
+        if not self.archetypes:
+            # Then we are not fully initialized, so just let keypresses pass
+            return super(FilterableListBox, self).keypress(size, key)
+
+        log("List got keypress %r %r" % (size, key))
+        if key == 'd':
+            self.reference.pop(0)
+        elif key == '/':
+            self.searchmode, self.searchterm = True, ''
+        elif key == 'esc':
+            self.searchmode, self.searchterm = False, ''
+            self.filter_results()
+        elif key == 'enter':
+            self.searchmode = False
+            self.filter_results()
+        elif key == 'backspace' and self.searchmode:
+            if self.searchterm:
+                self.searchterm = self.searchterm[:-1]
+                self.filter_results()
+            else:
+                pass  # TODO -- ring terminal bell here
+        elif self.searchmode:
+            self.searchterm += key
+            self.filter_results()
+        else:
+            log("searchterm is %r, len archetypes %r, len ref %r" % (self.searchterm, len(self.archetypes), len(self.reference)))
+            return super(FilterableListBox, self).keypress(size, key)
+        log("searchterm is %r, len archetypes %r, len ref %r" % (self.searchterm, len(self.archetypes), len(self.reference)))
 
 
 class Row(urwid.WidgetWrap):
@@ -140,6 +195,8 @@ def load_pkgdb_packages():
 
         yield row.set_rawhide(nvr_dict.get(row.name, ('(not found)',))[0])
 
+    listbox.set_archetypes(rows)
+
     delta = time.time() - start
     yield log('Done loading data in %is' % delta)
 
@@ -148,7 +205,7 @@ def load_pkgdb_packages():
 rows = []
 nvr_dict = {}
 
-listbox = urwid.ListBox(rows)
+listbox = FilterableListBox(rows)
 right = urwid.Frame(listbox, header=legend)
 
 # TODO -- eventually put a menu here
@@ -179,8 +236,17 @@ vim_keys = {
 for key, value in vim_keys.items():
     urwid.command_map[key] = value
 
+def unhandled_input(key):
+    if key in ['q', 'Q']:
+        raise urwid.ExitMainLoop()
+
 from twisted.internet import reactor
 reactor.callWhenRunning(build_nvr_dict)
 reactor.callWhenRunning(load_pkgdb_packages)
-mainloop = urwid.MainLoop(main, palette, event_loop=urwid.TwistedEventLoop())
+mainloop = urwid.MainLoop(
+    main,
+    palette,
+    event_loop=urwid.TwistedEventLoop(),
+    unhandled_input=unhandled_input,
+)
 mainloop.run()
