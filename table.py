@@ -43,12 +43,30 @@ def log(msg):
 
 
 class Row(urwid.WidgetWrap):
-    def __init__(self, name='package', upstream='', rawhide='', **kwargs):
-        if isinstance(rawhide, tuple):
-            version, release = rawhide
-            rawhide = version
+    def __init__(self, package):
+        for key, value in package.items():
+            setattr(self, key, value)
+        loading = '(loading...)'
         super(Row, self).__init__(
-            urwid.AttrMap(cols(name, upstream, rawhide), None, 'reversed'))
+            urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
+
+    def set_rawhide(self, value):
+        rawhide = 2  # Column number
+        self._w.original_widget.contents[rawhide][0].set_text(value)
+        return log('Set %r rawhide to %r' % (self.name, self.get_rawhide()))
+
+    def get_rawhide(self):
+        rawhide = 2  # Column number
+        return self._w.original_widget.contents[rawhide][0].get_text()
+
+    def set_upstream(self, value):
+        upstream = 1  # Column number
+        self._w.original_widget.contents[upstream][0].set_text(value)
+        return log('Set %r upstream to %r' % (self.name, self.get_upstream()))
+
+    def get_upstream(self):
+        upstream = 1  # Column number
+        return self._w.original_widget.contents[upstream][0].get_text()
 
     def selectable(self):
         return True
@@ -99,6 +117,11 @@ def load_pkgdb_packages():
 
     packages = [package for package in pkgdb['point of contact']]
     delta = time.time() - start
+    for package in packages:
+        package['upstream'] = '(loading...)'
+        package['rawhide'] = '(loading...)'
+        rows.append(Row(package))
+
     yield log('Found %i packages in %is' % (len(packages), delta))
 
     deferreds = []
@@ -106,22 +129,16 @@ def load_pkgdb_packages():
         url = anitya_url + '/api/project/Fedora/' + package['name']
         deferreds.append(http_session.get(url))
 
-    for d, package in zip(deferreds, packages):
+    for d, row in zip(deferreds, rows):
         response = yield d
         project = response.json()
 
         if project.get('version'):
-            package['upstream'] = project['version']
+            yield row.set_upstream(project['version'])
         else:
-            package['upstream'] = '(not found)'
-        yield log('Found upstream %s for %s' % (package['upstream'], package['name']))
+            yield row.set_upstream('(not found)')
 
-    for package in packages:
-        package['rawhide'] = nvr_dict.get(package['name'], '(not found)')
-        yield log('Found rawhide %s for %s (of %i packages in the nvr_dict)' % (package['rawhide'], package['name'], len(nvr_dict)))
-
-    for package in packages:
-        rows.append(Row(**package))
+        yield row.set_rawhide(nvr_dict.get(row.name, ('(not found)',))[0])
 
     delta = time.time() - start
     yield log('Done loading data in %is' % delta)
