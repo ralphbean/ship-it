@@ -169,6 +169,16 @@ palette = [
 # TODO -- close this down nicely at shutdown
 http_session = txrequests.Session(maxthreads=THREADS)
 
+# Add vim keys.
+vim_keys = {
+    'k':        'cursor up',
+    'j':      'cursor down',
+    'h':      'cursor left',
+    'l':     'cursor right',
+}
+for key, value in vim_keys.items():
+    urwid.command_map[key] = value
+
 from twisted.internet import reactor
 reactor.callWhenRunning(build_nvr_dict)
 reactor.callWhenRunning(load_pkgdb_packages)
