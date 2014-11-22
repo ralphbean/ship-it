@@ -4,11 +4,22 @@ import collections
 import copy
 import datetime
 import time
+import types
+import uuid
 
+import fedmsg.config
+import fedmsg.consumers
+import moksha.hub
 import txrequests
 import urwid
 
 from twisted.internet import defer, utils
+from twisted.internet import reactor
+
+# No need to install this, since txrequests does it at import-time.
+#from twisted.internet import epollreactor
+#epollreactor.install()
+
 
 # TODO - make this configurable
 LOGSIZE = 20
@@ -242,11 +253,6 @@ palette = [
     ('reversed', 'standout', '')
 ]
 
-# No need to install this, since txrequests does it at import-time.
-#from twisted.internet import epollreactor
-#epollreactor.install()
-
-# TODO -- close this down nicely at shutdown
 http_session = txrequests.Session(maxthreads=THREADS)
 
 # Add vim keys.
@@ -263,9 +269,36 @@ def unhandled_input(key):
     if key in ['q', 'Q']:
         raise urwid.ExitMainLoop()
 
-from twisted.internet import reactor
+
+class ShipitConsumer(fedmsg.consumers.FedmsgConsumer):
+    config_key = unicode(uuid.uuid4())
+    topic = '*'
+
+    def consume(self, msg):
+        topic, msg = msg['topic'], msg['body']
+        log('received fedmsg %r' % topic)
+
+
+fedmsg_config = fedmsg.config.load_config()
+fedmsg_config.update({
+    # Rephrase the /etc/fedmsg.d/ config as moksha *.ini format.
+    'zmq_subscribe_endpoints': ','.join(
+        ','.join(bunch) for bunch in fedmsg_config['endpoints'].values()
+    ),
+    # Enable our consumer by default
+    ShipitConsumer.config_key: True,
+})
+hub = moksha.hub.CentralMokshaHub(fedmsg_config, [ShipitConsumer], [])
+
 reactor.callWhenRunning(build_nvr_dict)
 reactor.callWhenRunning(load_pkgdb_packages)
+
+def cleanup(*args, **kwargs):
+    hub.close()
+    http_session.close()
+
+reactor.addSystemEventTrigger('before', 'shutdown', cleanup)
+
 mainloop = urwid.MainLoop(
     main,
     palette,
