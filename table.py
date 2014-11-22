@@ -5,8 +5,8 @@ import copy
 import datetime
 import re
 import time
-import types
 import uuid
+import webbrowser
 
 import fedmsg.config
 import fedmsg.consumers
@@ -21,6 +21,12 @@ from twisted.internet import reactor
 #from twisted.internet import epollreactor
 #epollreactor.install()
 
+# xdg and gvfs for unknown reasons produce garbage on stderr that messes up
+# our display, so we remove them and happily fall back to firefox or whatever
+for nuisance in ['xdg-open', 'gvfs-open']:
+    if nuisance in webbrowser._tryorder:
+        webbrowser._tryorder.remove(nuisance)
+
 
 # TODO - make this configurable
 LOGSIZE = 20
@@ -29,6 +35,30 @@ YUM_CONF = 'conf/yum.conf'
 
 pkgdb_url = 'https://admin.fedoraproject.org/pkgdb'
 anitya_url = 'https://release-monitoring.org'
+
+def basic_batch(func):
+    def decorated(list_object):
+        for item in list_object.reference:
+            func(item)
+    return decorated
+
+def open_anitya(row):
+    idx = row.upstream.get('id')
+    if idx:
+        url = '%s/project/%i' % (anitya_url, idx)
+    else:
+        url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
+    log("Opening %r" % url)
+    webbrowser.open_new_tab(url)
+
+batch_actions = {
+    'A': basic_batch(open_anitya)
+}
+
+row_actions = {
+    'a': open_anitya
+}
+
 
 
 def cols(a, b, c):
@@ -47,8 +77,9 @@ logbox = urwid.LineBox(logbox, 'Logs')
 
 class StatusBar(urwid.Text):
     default = '    '.join([
-        'q - Quit',
         '/ - Search',
+        'a - Anitya',
+        'q - Quit',
     ])
     def set_text(self, markup=default):
         super(StatusBar, self).set_text('    ' + markup)
@@ -127,6 +158,8 @@ class FilterableListBox(urwid.ListBox):
         elif self.searchmode:
             self.pattern += key
             self.filter_results()
+        elif key in batch_actions:
+            batch_actions[key](self)
         else:
             return super(FilterableListBox, self).keypress(size, key)
 
@@ -140,30 +173,34 @@ class Row(urwid.WidgetWrap):
             urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
 
     def set_rawhide(self, value):
-        rawhide = 2  # Column number
-        self._w.original_widget.contents[rawhide][0].set_text(value)
+        column = 2  # Column number
+        self._w.original_widget.contents[column][0].set_text(value)
         return noop()
 
     def get_rawhide(self):
-        rawhide = 2  # Column number
-        return self._w.original_widget.contents[rawhide][0].get_text()
+        column = 2  # Column number
+        return self._w.original_widget.contents[column][0].get_text()
 
-    def set_upstream(self, value):
-        upstream = 1  # Column number
-        self._w.original_widget.contents[upstream][0].set_text(value)
+    def set_upstream(self, upstream):
+        column = 1  # Column number
+        self.upstream = upstream
+        version = upstream.get('version', '(not found)')
+        self._w.original_widget.contents[column][0].set_text(version)
         return noop()
 
     def get_upstream(self):
-        upstream = 1  # Column number
-        return self._w.original_widget.contents[upstream][0].get_text()
+        column = 1  # Column number
+        return self._w.original_widget.contents[column][0].get_text()
 
     def selectable(self):
         return True
 
     def keypress(self, size, key):
         log("Received keypress %r %r" % (size, key))
-        # TODO - does this need to return the key to chain in urwid land?
-        return key
+        if key in row_actions:
+            row_actions[key](self)
+        else:
+            return key
 
 
 @defer.inlineCallbacks
@@ -223,9 +260,9 @@ def load_pkgdb_packages():
         project = response.json()
 
         if project.get('version'):
-            yield row.set_upstream(project['version'])
+            yield row.set_upstream(project)
         else:
-            yield row.set_upstream('(not found)')
+            yield row.set_upstream({})
 
         yield row.set_rawhide(nvr_dict.get(row.name, ('(not found)',))[0])
 
