@@ -3,6 +3,7 @@ from __future__ import print_function
 import collections
 import copy
 import datetime
+import re
 import time
 import types
 import uuid
@@ -82,12 +83,12 @@ class FilterableListBox(urwid.ListBox):
 
     def filter_results(self):
         for i, item in enumerate(self.archetypes):
-            if self.searchterm in item.name:
+            if re.search(self.searchterm, item.name):
                 if item not in self.reference:
                     self.reference.insert(i, item)
 
         for item in list(self.reference):
-            if self.searchterm not in item.name:
+            if not re.search(self.searchterm, item.name):
                 self.reference.remove(item)
 
         if self.searchmode:
