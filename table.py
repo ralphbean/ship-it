@@ -78,28 +78,28 @@ class FilterableListBox(urwid.ListBox):
     def __init__(self, items):
         self.reference = items
         self.set_originals([])
-        self.searchmode, self.searchterm = False, None
+        self.searchmode, self.pattern = False, None
         super(FilterableListBox, self).__init__(items)
 
     def filter_results(self):
         for i, item in enumerate(self.originals):
-            if re.search(self.searchterm, item.name):
+            if re.search(self.pattern, item.name):
                 if item not in self.reference:
                     self.reference.insert(i, item)
 
         for item in list(self.reference):
-            if not re.search(self.searchterm, item.name):
+            if not re.search(self.pattern, item.name):
                 self.reference.remove(item)
 
         if self.searchmode:
-            statusbar.set_text('/' + self.searchterm)
+            statusbar.set_text('/' + self.pattern)
 
     def start_search(self):
-        self.searchmode, self.searchterm = True, ''
+        self.searchmode, self.pattern = True, ''
         self.filter_results()
 
     def end_search(self, filter=True):
-        self.searchmode, self.searchterm = False, ''
+        self.searchmode, self.pattern = False, ''
         if filter:
             self.filter_results()
         statusbar.set_text()
@@ -119,13 +119,13 @@ class FilterableListBox(urwid.ListBox):
         elif key == 'enter':
             self.end_search(filter=False)
         elif key == 'backspace' and self.searchmode:
-            if self.searchterm:
-                self.searchterm = self.searchterm[:-1]
+            if self.pattern:
+                self.pattern = self.pattern[:-1]
             else:
                 self.end_search()
             self.filter_results()
         elif self.searchmode:
-            self.searchterm += key
+            self.pattern += key
             self.filter_results()
         else:
             return super(FilterableListBox, self).keypress(size, key)
