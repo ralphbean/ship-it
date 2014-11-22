@@ -1,0 +1,58 @@
+Some ideas on how commands could work:
+
+FILTERS
+/ - searches, limits
+d - limit to only out-of-date packages, i,e, ones that have an upstream release
+    newer than what's in rawhide.
+
+NOTE -- Capitalizing most commands will make them act on "all selected
+        packages" where using the lowercase command will make them act only on
+        the single selected package.
+
+        For example, if I type '/neth<enter>' it will narrow down my packages
+        to just 'nethack' and 'nethogs'.  If I type 'mc' it will ask anitya to
+        check for an upstream release of nethack only (since that's the one of
+        the two the row cursor is on).  If I type 'mC' it will ask anitya to
+        check for an upstream release of both of them.  If I type '<esc>' that
+        removes my search filter, bringing me back to all of my packages.  If I
+        type 'mC', then it will ask anitya to check for fresh upstream releases
+        for *all* of my packages.
+
+ACTIONS/sub-menus
+m - monitoring
+    o - open in browser
+    c - request a check of upstream
+s - source
+    o - open dist-git in browser
+    c - clone from dist-git
+    n - nuke current clone
+    b - bump version (if a newer one exists)
+r - rawhide
+    s - request a scratch build
+    b - kick off a real build
+f - fedora
+    2 -
+        0 - fedora 20
+            m - merge from master
+            s - request a scratch build
+            b - kick off a real build
+            ....
+    * - all active fedora branches
+        m - merge from master
+        s - request a scratch build
+        b - kick off a real build
+        u - ship a bodhi update
+        o - submit a buildroot override
+e - epel
+    7 -
+        m - merge from master
+        ...
+
+Some thoughts - we should/could have Makefile style dependencies between
+commands.  So, if select a package and hit 'f20b', it should see that I want a
+real build, but first.. it should want a scratch build to succeed.  If it
+doesn't already have one in memory, then submit it.  But, it should see that I
+need to first merge from master and do that first, then the scratch build, then
+the real build (if the scratch succeeds).  It should know how to no-op, too..
+i.e., if it sees that the upstream version is the same as in f20, it should do
+nothing.
