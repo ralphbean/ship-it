@@ -77,12 +77,12 @@ def noop():
 class FilterableListBox(urwid.ListBox):
     def __init__(self, items):
         self.reference = items
-        self.set_archetypes([])
+        self.set_originals([])
         self.searchmode, self.searchterm = False, None
         super(FilterableListBox, self).__init__(items)
 
     def filter_results(self):
-        for i, item in enumerate(self.archetypes):
+        for i, item in enumerate(self.originals):
             if re.search(self.searchterm, item.name):
                 if item not in self.reference:
                     self.reference.insert(i, item)
@@ -104,11 +104,11 @@ class FilterableListBox(urwid.ListBox):
             self.filter_results()
         statusbar.set_text()
 
-    def set_archetypes(self, archetypes):
-        self.archetypes = copy.copy(archetypes)
+    def set_originals(self, originals):
+        self.originals = copy.copy(originals)
 
     def keypress(self, size, key):
-        if not self.archetypes:
+        if not self.originals:
             # Then we are not fully initialized, so just let keypresses pass
             return super(FilterableListBox, self).keypress(size, key)
 
@@ -229,7 +229,7 @@ def load_pkgdb_packages():
 
         yield row.set_rawhide(nvr_dict.get(row.name, ('(not found)',))[0])
 
-    listbox.set_archetypes(rows)
+    listbox.set_originals(rows)
 
     delta = time.time() - start
     statusbar.set_text()
