@@ -41,6 +41,7 @@ def assemble_model(config, fedmsg_config):
 
 class Package(shipit.signals.AsyncNotifier):
     def __init__(self, pkgdb):
+        self.name = pkgdb['name']
         self.pkgdb = pkgdb
         self.rawhide = None
         self.upstream = None
