@@ -56,6 +56,15 @@ def load_shipitrc_config(path):
     loaded = parser._sections['shipit']
 
     config.update(loaded)
+
+    typecasts = {
+        'logsize': int,
+        'http.threads': int,
+    }
+
+    for key, cast in typecasts.items():
+        config[key] = cast(config[key])
+
     return config
 
 

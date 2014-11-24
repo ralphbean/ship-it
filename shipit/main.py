@@ -50,7 +50,7 @@ def command():
 
     model = shipit.model.assemble_model(config, fedmsg_config)
 
-    ui, palette = shipit.ui.assemble_ui(config, fedmsg_config)
+    ui, palette = shipit.ui.assemble_ui(config, fedmsg_config, model)
 
     mainloop = shipit.reactor.initialize(
         config, fedmsg_config, ui, palette, model)

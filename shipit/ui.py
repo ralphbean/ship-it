@@ -82,7 +82,7 @@ class Row(urwid.WidgetWrap):
             return key
 
 
-def assemble_ui(config, fedmsg_config):
+def assemble_ui(config, fedmsg_config, model):
     global batch_actions
     global row_actions
     global listbox
@@ -128,6 +128,9 @@ def assemble_ui(config, fedmsg_config):
         ])
         def set_text(self, markup=default):
             super(StatusBar, self).set_text('    ' + markup)
+
+        def ready(self):
+            self.set_text()
 
     statusbar = StatusBar('Initializing...')
 
@@ -189,6 +192,13 @@ def assemble_ui(config, fedmsg_config):
                 batch_actions[key](self)
             else:
                 return super(FilterableListBox, self).keypress(size, key)
+
+
+    #self.register('rawhide', name, package.set_rawhide)
+    #shipit.ui.listbox.set_originals(shipit.ui.rows)
+    #shipit.ui.statusbar.set_text()
+    model.register('initialized', None, lambda key: statusbar.ready())
+
 
 
     listbox = FilterableListBox(rows)

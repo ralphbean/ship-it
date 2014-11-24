@@ -18,12 +18,15 @@
 
 from __future__ import print_function
 
+import collections
 import time
 
 import twisted.internet.defer
 
 from twisted.internet import utils
 
+import shipit.reactor
+import shipit.signals
 import shipit.utils
 from shipit.log import log
 
@@ -36,7 +39,22 @@ def assemble_model(config, fedmsg_config):
     return PackageList(config, fedmsg_config)
 
 
-class PackageList(list):
+class Package(shipit.signals.AsyncNotifier):
+    def __init__(self, pkgdb):
+        self.pkgdb = pkgdb
+        self.rawhide = None
+        self.upstream = None
+
+    def set_upstream(self, upstream):
+        self.upstream = upstream
+        self.signal('upstream', upstream)
+
+    def set_rawhide(self, rawhide):
+        self.rawhide = rawhide
+        self.signal('rawhide', rawhide)
+
+
+class PackageList(collections.OrderedDict, shipit.signals.AsyncNotifier):
     """ Primary DB object.
     Keeps a list of all your packages, with:
     - convenience methods for searching
@@ -77,13 +95,13 @@ class PackageList(list):
             if line:
                 name, version, release = line.split("\t")
                 self.nvr_dict[name] = (version, release)
+                self.signal('rawhide', name)
 
         yield log("Done building nvr dict with %i items" % len(self.nvr_dict))
 
 
     @twisted.internet.defer.inlineCallbacks
     def load_pkgdb_packages(self):
-
         url = self.pkgdb_url + '/api/packager/package/' + self.username
         yield log('Loading packages from ' + url)
         start = time.time()
@@ -91,33 +109,29 @@ class PackageList(list):
         resp = yield shipit.utils.http.get(url)
         pkgdb = resp.json()
 
-        packages = [package for package in pkgdb['point of contact']]
-        delta = time.time() - start
-        for package in packages:
-            package['upstream'] = '(loading...)'
-            package['rawhide'] = '(loading...)'
-            shipit.ui.rows.append(shipit.ui.Row(package))
+        for package in pkgdb['point of contact'][:6]:
+            name = package['name']
+            package = self[name] = Package(pkgdb=package)
+            self.register('rawhide', name, package.set_rawhide)
+            if name in self.nvr_dict:
+                yield package.set_rawhide(self.nvr_dict.get(name))
 
-        yield log('Found %i packages in %is' % (len(packages), delta))
+        delta = time.time() - start
+
+        yield log('Found %i packages in %is' % (len(self), delta))
 
         deferreds = []
-        for package in packages:
-            url = self.anitya_url + '/api/project/Fedora/' + package['name']
+        for name in self:
+            url = self.anitya_url + '/api/project/Fedora/' + name
             deferreds.append(shipit.utils.http.get(url))
 
-        for d, row in zip(deferreds, shipit.ui.rows):
+        for d, name, package in zip(deferreds, *zip(*self.items())):
             response = yield d
             project = response.json()
 
-            if project.get('version'):
-                yield row.set_upstream(project)
-            else:
-                yield row.set_upstream({})
+            yield package.set_upstream(project)
 
-            yield row.set_rawhide(self.nvr_dict.get(row.name, ('(not found)',))[0])
-
-        shipit.ui.listbox.set_originals(shipit.ui.rows)
+        self.signal('initialized', self.items())
 
         delta = time.time() - start
-        shipit.ui.statusbar.set_text()
         yield log('Done loading data in %is' % delta)
