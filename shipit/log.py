@@ -27,10 +27,13 @@ import shipit.main
 import shipit.utils
 
 logitems = None
+logfile = None
 
 def initialize(config, fedmsg_config):
     global logitems
+    global logfile
     logitems = collections.deque(maxlen=config['logsize'])
+    logfile = config['logfile']
 
 
 def log(msg):
@@ -39,7 +42,11 @@ def log(msg):
 
     prefix = "[%s] " % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     # TODO -- remove urwid here and have just a base list with urwid applied later
-    logitems.append(urwid.Text(prefix + msg))
+    msg = prefix + msg
+    logitems.append(urwid.Text(msg))
+
+    with open(logfile, 'a') as f:
+        f.write(msg + '\n')
 
     # We need to asynchronously update our logs while other inlineCallbacks
     # block are ongoing, so we do...

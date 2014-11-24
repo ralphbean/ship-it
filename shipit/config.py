@@ -28,6 +28,8 @@ import shipit.consumers
 
 defaults = {
     'logsize': 30,
+    'logfile': '/var/tmp/shipit.log',
+
     'http.threads': 10,
     'yum_conf': 'conf/yum.conf',
 
