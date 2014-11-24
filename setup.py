@@ -83,6 +83,6 @@ setup(
     zip_safe=False,
     entry_points='''
     [console_scripts]
-    shipit = shipit.main:shipit
+    shipit = shipit.main:command
     '''
 )

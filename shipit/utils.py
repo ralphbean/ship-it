@@ -18,13 +18,22 @@
 
 from __future__ import print_function
 
-from twisted.internet import defer
+import twisted.internet.defer
+import txrequests
 
-from shipit.main import reactor
+import shipit.main
 
+
+# Global state
+http = None
 
 def noop():
     """ Returns a no-op twisted deferred. """
-    d = defer.Deferred()
-    reactor.callLater(0, d.callback, None)
+    d = twisted.internet.defer.Deferred()
+    shipit.main.reactor.callLater(0, d.callback, None)
     return d
+
+
+def initialize_http(config, fedmsg_config):
+    global http
+    http = txrequests.Session(maxthreads=config['http.threads'])

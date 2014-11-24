@@ -18,31 +18,39 @@
 
 from __future__ import print_function
 
-import collections
-import datetime
-
 import urwid
 
-import shipit.main
+import moksha.hub
+
+import shipit.consumers
+import shipit.models
 import shipit.utils
+import shipit.producers
 
-logitems = None
-
-def initialize(config, fedmsg_config):
-    global logitems
-    logitems = collections.deque(maxlen=config['logsize'])
+from twisted.internet import reactor
 
 
-def log(msg):
-    if logitems is None:
-        raise ValueError("shipit.log not initialized")
+def unhandled_input(key):
+    if key in ['q', 'Q']:
+        raise urwid.ExitMainLoop()
 
-    prefix = "[%s] " % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    # TODO -- remove urwid here and have just a base list with urwid applied later
-    logitems.append(urwid.Text(prefix + msg))
 
-    # We need to asynchronously update our logs while other inlineCallbacks
-    # block are ongoing, so we do...
-    d = shipit.utils.noop()
-    d.addCallback(lambda x: shipit.main.mainloop.draw_screen())
-    return d
+def initialize(config, fedmsg_config, ui, palette, models):
+
+    consumers = shipit.consumers.all_consumers
+    producers = shipit.producers.all_producers
+    hub = moksha.hub.CentralMokshaHub(fedmsg_config, consumers, producers)
+
+    reactor.callWhenRunning(shipit.models.build_nvr_dict)
+    reactor.callWhenRunning(shipit.models.load_pkgdb_packages)
+
+    def cleanup(*args, **kwargs):
+        hub.close()
+        shipit.utils.http.close()
+
+    reactor.addSystemEventTrigger('before', 'shutdown', cleanup)
+    return urwid.MainLoop(
+        ui, palette,
+        event_loop=urwid.TwistedEventLoop(),
+        unhandled_input=unhandled_input,
+    )

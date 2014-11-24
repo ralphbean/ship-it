@@ -18,31 +18,20 @@
 
 from __future__ import print_function
 
-import collections
-import datetime
+import uuid
 
-import urwid
+import fedmsg.consumers
 
-import shipit.main
-import shipit.utils
-
-logitems = None
-
-def initialize(config, fedmsg_config):
-    global logitems
-    logitems = collections.deque(maxlen=config['logsize'])
+import shipit.log
 
 
-def log(msg):
-    if logitems is None:
-        raise ValueError("shipit.log not initialized")
+class ShipitConsumer(fedmsg.consumers.FedmsgConsumer):
+    config_key = unicode(uuid.uuid4())
+    topic = '*'
 
-    prefix = "[%s] " % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    # TODO -- remove urwid here and have just a base list with urwid applied later
-    logitems.append(urwid.Text(prefix + msg))
+    def consume(self, msg):
+        topic, msg = msg['topic'], msg['body']
+        shipit.log.log('received fedmsg %r' % topic)
 
-    # We need to asynchronously update our logs while other inlineCallbacks
-    # block are ongoing, so we do...
-    d = shipit.utils.noop()
-    d.addCallback(lambda x: shipit.main.mainloop.draw_screen())
-    return d
+
+all_consumers = [ShipitConsumer]
