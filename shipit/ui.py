@@ -132,7 +132,7 @@ def assemble_ui(config, fedmsg_config, model):
 
     class FilterableListBox(urwid.ListBox):
         def __init__(self):
-            self.searchmode, self.pattern = False, None
+            self.searchmode, self.pattern = False, ''
             self.reference = []
             self.set_originals([])
             super(FilterableListBox, self).__init__(self.reference)
