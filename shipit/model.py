@@ -116,6 +116,8 @@ class PackageList(collections.OrderedDict, shipit.signals.AsyncNotifier):
             if name in self.nvr_dict:
                 yield package.set_rawhide(self.nvr_dict.get(name))
 
+        self.signal('pkgdb', self.items())
+
         delta = time.time() - start
 
         yield log('Found %i packages in %is' % (len(self), delta))

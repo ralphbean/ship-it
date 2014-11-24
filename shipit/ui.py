@@ -31,9 +31,6 @@ from shipit.log import log
 
 # TODO kill this, global state
 row_actions, batch_actions = None, None
-rows = []
-listbox = None
-statusbar = None
 
 def cols(a, b, c):
     return urwid.Columns([
@@ -45,8 +42,8 @@ def cols(a, b, c):
 
 class Row(urwid.WidgetWrap):
     def __init__(self, package):
-        for key, value in package.items():
-            setattr(self, key, value)
+        self.package = package
+        self.name = package.pkgdb['name']
         loading = '(loading...)'
         super(Row, self).__init__(
             urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
@@ -85,8 +82,6 @@ class Row(urwid.WidgetWrap):
 def assemble_ui(config, fedmsg_config, model):
     global batch_actions
     global row_actions
-    global listbox
-    global statusbar
     anitya_url = config['anitya_url']
     logsize = config['logsize']
 
@@ -129,18 +124,22 @@ def assemble_ui(config, fedmsg_config, model):
         def set_text(self, markup=default):
             super(StatusBar, self).set_text('    ' + markup)
 
-        def ready(self):
+        def ready(self, *args, **kwargs):
             self.set_text()
 
     statusbar = StatusBar('Initializing...')
 
 
     class FilterableListBox(urwid.ListBox):
-        def __init__(self, items):
-            self.reference = items
-            self.set_originals([])
+        def __init__(self):
             self.searchmode, self.pattern = False, None
-            super(FilterableListBox, self).__init__(items)
+            self.reference = []
+            self.set_originals([])
+            super(FilterableListBox, self).__init__(self.reference)
+
+        def initialize(self, packages):
+            rows = [Row(package) for name, package in packages]
+            self.set_originals(rows)
 
         def filter_results(self):
             for i, item in enumerate(self.originals):
@@ -167,6 +166,7 @@ def assemble_ui(config, fedmsg_config, model):
 
         def set_originals(self, originals):
             self.originals = copy.copy(originals)
+            self.filter_results()
 
         def keypress(self, size, key):
             if not self.originals:
@@ -193,15 +193,11 @@ def assemble_ui(config, fedmsg_config, model):
             else:
                 return super(FilterableListBox, self).keypress(size, key)
 
+    listbox = FilterableListBox()
 
-    #self.register('rawhide', name, package.set_rawhide)
-    #shipit.ui.listbox.set_originals(shipit.ui.rows)
-    #shipit.ui.statusbar.set_text()
-    model.register('initialized', None, lambda key: statusbar.ready())
+    model.register('pkgdb', None, listbox.initialize)
+    model.register('initialized', None, statusbar.ready)
 
-
-
-    listbox = FilterableListBox(rows)
     right = urwid.Frame(listbox, header=legend)
 
     # TODO -- eventually put a menu here

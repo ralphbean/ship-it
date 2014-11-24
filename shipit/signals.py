@@ -35,7 +35,8 @@ class AsyncNotifier(object):
             entry = entry[key]
 
         if entry:
-            log("Triggering %r callbacks on key %r" % (len(entry), key))
+            log("Triggering %r callbacks on key %s/%s" % (
+                len(entry), event, str(key)))
 
         args = [key] if key else []
         for callback in entry:
@@ -53,6 +54,6 @@ class AsyncNotifier(object):
         if key:
             entry = self._callbacks[event][key]
 
-        log("Registering callback %r on %r/%r" % (callback, event, key))
+        log("Registering callback %r on %s/%s" % (callback, event, str(key)))
 
         entry.append(callback)
