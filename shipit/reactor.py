@@ -22,11 +22,6 @@ import urwid
 
 import moksha.hub
 
-import shipit.consumers
-import shipit.models
-import shipit.utils
-import shipit.producers
-
 from twisted.internet import reactor
 
 
@@ -37,12 +32,23 @@ def unhandled_input(key):
 
 def initialize(config, fedmsg_config, ui, palette, models):
 
+    import shipit.models
+
+    import shipit.consumers
+    import shipit.producers
+
+    import shipit.utils
+
     consumers = shipit.consumers.all_consumers
     producers = shipit.producers.all_producers
     hub = moksha.hub.CentralMokshaHub(fedmsg_config, consumers, producers)
 
-    reactor.callWhenRunning(shipit.models.build_nvr_dict)
-    reactor.callWhenRunning(shipit.models.load_pkgdb_packages)
+    startup_routines = [
+        shipit.models.build_nvr_dict,
+        shipit.models.load_pkgdb_packages,
+    ]
+    for routine in startup_routines:
+        reactor.callWhenRunning(routine, config, fedmsg_config)
 
     def cleanup(*args, **kwargs):
         hub.close()

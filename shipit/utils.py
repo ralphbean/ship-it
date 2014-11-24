@@ -18,10 +18,13 @@
 
 from __future__ import print_function
 
+import webbrowser
+
 import twisted.internet.defer
 import txrequests
+import urwid
 
-import shipit.main
+import shipit.reactor
 
 
 # Global state
@@ -30,10 +33,32 @@ http = None
 def noop():
     """ Returns a no-op twisted deferred. """
     d = twisted.internet.defer.Deferred()
-    shipit.main.reactor.callLater(0, d.callback, None)
+    shipit.reactor.reactor.callLater(0, d.callback, None)
     return d
 
 
 def initialize_http(config, fedmsg_config):
     global http
     http = txrequests.Session(maxthreads=config['http.threads'])
+
+
+def vimify():
+    """ Add vim keys to urwid """
+    vim_keys = {
+        'k':        'cursor up',
+        'j':      'cursor down',
+        'h':      'cursor left',
+        'l':     'cursor right',
+    }
+    for key, value in vim_keys.items():
+        urwid.command_map[key] = value
+
+def patch_webbrowser():
+    """ Patch the python stdlib webbrowser module.
+
+    xdg and gvfs for unknown reasons produce garbage on stderr that messes up
+    our display, so we remove them and happily fall back to firefox or whatever
+    """
+    for nuisance in ['xdg-open', 'gvfs-open']:
+        if nuisance in webbrowser._tryorder:
+            webbrowser._tryorder.remove(nuisance)

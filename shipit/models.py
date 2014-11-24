@@ -18,16 +18,30 @@
 
 from __future__ import print_function
 
+import time
+
 import twisted.internet.defer
+
+from twisted.internet import utils
+
+import shipit.utils
+from shipit.log import log
+
+# TODO -- kill this.  we shouldn't import ui in model
+import shipit.ui
 
 
 def assemble_models(config, fedmsg_config):
     # TODO -- not sure what to do with this yet.
     return None
 
+# TODO - global state for now :(
+nvr_dict = {}
 
 @twisted.internet.defer.inlineCallbacks
-def build_nvr_dict(repoid='rawhide'):
+def build_nvr_dict(config, fedmsg_config):
+    yum_conf = config['yum_conf']
+
     cmdline = ["/usr/bin/repoquery",
             "--quiet",
             "--config=%s" % yum_conf,
@@ -36,8 +50,8 @@ def build_nvr_dict(repoid='rawhide'):
             "--qf",
             "'%{name}\t%{version}\t%{release}'"]
 
-    if repoid:
-        cmdline.append('--repoid=%s' % repoid)
+    #if repoid:
+    #    cmdline.append('--repoid=%s' % repoid)
 
     start = time.time()
     yield log("Running %r" % ' '.join(cmdline))
@@ -55,7 +69,10 @@ def build_nvr_dict(repoid='rawhide'):
 
 
 @twisted.internet.defer.inlineCallbacks
-def load_pkgdb_packages():
+def load_pkgdb_packages(config, fedmsg_config):
+    anitya_url = config['anitya_url']
+    pkgdb_url = config['pkgdb_url']
+
     username = 'ralph'
     url = pkgdb_url + '/api/packager/package/' + username
     yield log('Loading packages from ' + url)
@@ -69,16 +86,16 @@ def load_pkgdb_packages():
     for package in packages:
         package['upstream'] = '(loading...)'
         package['rawhide'] = '(loading...)'
-        rows.append(Row(package))
+        shipit.ui.rows.append(shipit.ui.Row(package))
 
     yield log('Found %i packages in %is' % (len(packages), delta))
 
     deferreds = []
     for package in packages:
         url = anitya_url + '/api/project/Fedora/' + package['name']
-        deferreds.append(http_session.get(url))
+        deferreds.append(shipit.utils.http.get(url))
 
-    for d, row in zip(deferreds, rows):
+    for d, row in zip(deferreds, shipit.ui.rows):
         response = yield d
         project = response.json()
 
@@ -89,8 +106,8 @@ def load_pkgdb_packages():
 
         yield row.set_rawhide(nvr_dict.get(row.name, ('(not found)',))[0])
 
-    listbox.set_originals(rows)
+    shipit.ui.listbox.set_originals(shipit.ui.rows)
 
     delta = time.time() - start
-    statusbar.set_text()
+    shipit.ui.statusbar.set_text()
     yield log('Done loading data in %is' % delta)

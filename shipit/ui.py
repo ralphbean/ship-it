@@ -20,27 +20,75 @@ from __future__ import print_function
 
 import copy
 import re
-import time
 import webbrowser
 
 import urwid
 
-from twisted.internet import defer, utils
-
-import shipit.config
-import shipit.consumers
-import shipit.producers
 import shipit.log
+import shipit.utils
 
 from shipit.log import log
-from shipit.utils import noop
+
+# TODO kill this, global state
+row_actions, batch_actions = None, None
+rows = []
+listbox = None
+statusbar = None
+
+def cols(a, b, c):
+    return urwid.Columns([
+        (40, urwid.Text(a)),
+        (13, urwid.Text(b, align='right')),
+        (32, urwid.Text(c, align='right')),
+    ], dividechars=1)
+
+
+class Row(urwid.WidgetWrap):
+    def __init__(self, package):
+        for key, value in package.items():
+            setattr(self, key, value)
+        loading = '(loading...)'
+        super(Row, self).__init__(
+            urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
+
+    def set_rawhide(self, value):
+        column = 2  # Column number
+        self._w.original_widget.contents[column][0].set_text(value)
+        return shipit.utils.noop()
+
+    def get_rawhide(self):
+        column = 2  # Column number
+        return self._w.original_widget.contents[column][0].get_text()
+
+    def set_upstream(self, upstream):
+        column = 1  # Column number
+        self.upstream = upstream
+        version = upstream.get('version', '(not found)')
+        self._w.original_widget.contents[column][0].set_text(version)
+        return shipit.utils.noop()
+
+    def get_upstream(self):
+        column = 1  # Column number
+        return self._w.original_widget.contents[column][0].get_text()
+
+    def selectable(self):
+        return True
+
+    def keypress(self, size, key):
+        log("Received keypress %r %r" % (size, key))
+        if key in row_actions:
+            row_actions[key](self)
+        else:
+            return key
 
 
 def assemble_ui(config, fedmsg_config):
+    global batch_actions
+    global row_actions
+    global listbox
+    global statusbar
     anitya_url = config['anitya_url']
-    pkgdb_url = config['pkgdb_url']
     logsize = config['logsize']
-    yum_conf = config['yum_conf']
 
     def basic_batch(func):
         def decorated(list_object):
@@ -65,13 +113,6 @@ def assemble_ui(config, fedmsg_config):
         'a': open_anitya
     }
 
-
-    def cols(a, b, c):
-        return urwid.Columns([
-            (40, urwid.Text(a)),
-            (13, urwid.Text(b, align='right')),
-            (32, urwid.Text(c, align='right')),
-        ], dividechars=1)
 
     legend = cols(u'package', u'upstream', u'rawhide')
 
@@ -149,49 +190,6 @@ def assemble_ui(config, fedmsg_config):
             else:
                 return super(FilterableListBox, self).keypress(size, key)
 
-
-    class Row(urwid.WidgetWrap):
-        def __init__(self, package):
-            for key, value in package.items():
-                setattr(self, key, value)
-            loading = '(loading...)'
-            super(Row, self).__init__(
-                urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
-
-        def set_rawhide(self, value):
-            column = 2  # Column number
-            self._w.original_widget.contents[column][0].set_text(value)
-            return noop()
-
-        def get_rawhide(self):
-            column = 2  # Column number
-            return self._w.original_widget.contents[column][0].get_text()
-
-        def set_upstream(self, upstream):
-            column = 1  # Column number
-            self.upstream = upstream
-            version = upstream.get('version', '(not found)')
-            self._w.original_widget.contents[column][0].set_text(version)
-            return noop()
-
-        def get_upstream(self):
-            column = 1  # Column number
-            return self._w.original_widget.contents[column][0].get_text()
-
-        def selectable(self):
-            return True
-
-        def keypress(self, size, key):
-            log("Received keypress %r %r" % (size, key))
-            if key in row_actions:
-                row_actions[key](self)
-            else:
-                return key
-
-
-    # XXX - global state
-    rows = []
-    nvr_dict = {}
 
     listbox = FilterableListBox(rows)
     right = urwid.Frame(listbox, header=legend)
