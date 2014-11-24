@@ -18,9 +18,7 @@
 
 from __future__ import print_function
 
-import collections
 import copy
-import datetime
 import re
 import time
 import uuid
@@ -34,6 +32,11 @@ import urwid
 
 from twisted.internet import defer, utils
 from twisted.internet import reactor
+
+import shipit.log
+from shipit.log import log
+from shipit.utils import noop
+
 
 # No need to install this, since txrequests does it at import-time.
 #from twisted.internet import epollreactor
@@ -87,8 +90,8 @@ def cols(a, b, c):
 
 legend = cols(u'package', u'upstream', u'rawhide')
 
-logitems = collections.deque(maxlen=LOGSIZE)
-logbox = urwid.BoxAdapter(urwid.ListBox(logitems), LOGSIZE)
+shipit.log.initialize(LOGSIZE)
+logbox = urwid.BoxAdapter(urwid.ListBox(shipit.log.logitems), LOGSIZE)
 logbox = urwid.LineBox(logbox, 'Logs')
 
 
@@ -102,24 +105,6 @@ class StatusBar(urwid.Text):
         super(StatusBar, self).set_text('    ' + markup)
 
 statusbar = StatusBar('Initializing...')
-
-
-def log(msg):
-    prefix = "[%s] " % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    logitems.append(urwid.Text(prefix + msg))
-
-    # We need to asynchronously update our logs while other inlineCallbacks
-    # block are ongoing, so we do...
-    d = noop()
-    d.addCallback(lambda x: mainloop.draw_screen())
-    return d
-
-
-def noop():
-    """ Returns a no-op twisted deferred. """
-    d = defer.Deferred()
-    reactor.callLater(0, d.callback, None)
-    return d
 
 
 class FilterableListBox(urwid.ListBox):
