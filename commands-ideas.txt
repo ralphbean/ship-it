@@ -56,3 +56,19 @@ need to first merge from master and do that first, then the scratch build, then
 the real build (if the scratch succeeds).  It should know how to no-op, too..
 i.e., if it sees that the upstream version is the same as in f20, it should do
 nothing.
+
+PROBLEM -- we don't have enough screen real estate to display all the
+           information we want.  For anitya, there's all kinds of info -- the
+           name, the mappings in other distros, the upstream release, the
+           backend, the regex, the last time a new upstream release was seen...
+           We can't possibly fit it all on one dashboard *along with* info from
+           other sources.
+
+           So, maybe we change the central table so that there is a special
+           table for each of the major actions: you hit 'm' to look at anitya
+           actions, but the table changes to show anitya info too.
+           You hit 'r' to do rawhide things, but the table can also change to
+           show maybe build history from datagrepper, or... I dunno.  git log?
+
+
+CANDY -- make a little realtime fedmsg activity sparkline
