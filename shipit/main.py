@@ -1,3 +1,21 @@
+# This file is part of shipit, a curses-based, fedmsg-aware heads up display
+# for Fedora package maintainers.
+# Copyright (C) 2014  Ralph Bean <rbean@redhat.com>
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see
+# <http://www.gnu.org/licenses/>.
+
 from __future__ import print_function
 
 import collections
@@ -58,7 +76,6 @@ batch_actions = {
 row_actions = {
     'a': open_anitya
 }
-
 
 
 def cols(a, b, c):
@@ -316,31 +333,32 @@ class ShipitConsumer(fedmsg.consumers.FedmsgConsumer):
         topic, msg = msg['topic'], msg['body']
         log('received fedmsg %r' % topic)
 
-
-fedmsg_config = fedmsg.config.load_config()
-fedmsg_config.update({
-    # Rephrase the /etc/fedmsg.d/ config as moksha *.ini format.
-    'zmq_subscribe_endpoints': ','.join(
-        ','.join(bunch) for bunch in fedmsg_config['endpoints'].values()
-    ),
-    # Enable our consumer by default
-    ShipitConsumer.config_key: True,
-})
-hub = moksha.hub.CentralMokshaHub(fedmsg_config, [ShipitConsumer], [])
-
-reactor.callWhenRunning(build_nvr_dict)
-reactor.callWhenRunning(load_pkgdb_packages)
-
-def cleanup(*args, **kwargs):
-    hub.close()
-    http_session.close()
-
-reactor.addSystemEventTrigger('before', 'shutdown', cleanup)
-
 mainloop = urwid.MainLoop(
     main,
     palette,
     event_loop=urwid.TwistedEventLoop(),
     unhandled_input=unhandled_input,
 )
-mainloop.run()
+
+
+def shipit():
+    fedmsg_config = fedmsg.config.load_config()
+    fedmsg_config.update({
+        # Rephrase the /etc/fedmsg.d/ config as moksha *.ini format.
+        'zmq_subscribe_endpoints': ','.join(
+            ','.join(bunch) for bunch in fedmsg_config['endpoints'].values()
+        ),
+        # Enable our consumer by default
+        ShipitConsumer.config_key: True,
+    })
+    hub = moksha.hub.CentralMokshaHub(fedmsg_config, [ShipitConsumer], [])
+
+    reactor.callWhenRunning(build_nvr_dict)
+    reactor.callWhenRunning(load_pkgdb_packages)
+
+    def cleanup(*args, **kwargs):
+        hub.close()
+        http_session.close()
+
+    reactor.addSystemEventTrigger('before', 'shutdown', cleanup)
+    mainloop.run()

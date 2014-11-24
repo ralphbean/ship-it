@@ -1,6 +1,8 @@
 ship-it
 =======
 
+.. split here
+
 A curses-based, fedmsg-aware heads up display for Fedora package maintainers.
 
 The purpose of this tool is to automate the tasks that annoy me:

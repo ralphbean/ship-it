@@ -63,8 +63,6 @@ setup(
     license='GPLv3+',
     classifiers=[
         'License :: OSI Approved :: GNU General Public License (GPL)',
-        'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         # I'd love to support python3, but we need twisted getProcessOutput
@@ -72,9 +70,6 @@ setup(
         #'Programming Language :: Python :: 3.1',
         #'Programming Language :: Python :: 3.2',
         #'Programming Language :: Python :: 3.3',
-        'Topic :: Text Processing',
-        'Topic :: Text Processing :: Markup',
-        'Topic :: Text Processing :: Markup :: HTML',
     ],
     install_requires=requires,
     tests_require=[
@@ -88,6 +83,6 @@ setup(
     zip_safe=False,
     entry_points='''
     [console_scripts]
-    shipit = shipit.main:main
+    shipit = shipit.main:shipit
     '''
 )
