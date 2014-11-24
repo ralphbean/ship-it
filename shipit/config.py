@@ -25,6 +25,9 @@ import fedmsg.config
 import shipit.consumers
 
 defaults = {
+    # TODO - zomg remove this.
+    'username': 'ralph',
+
     'logsize': 30,
     'http.threads': 10,
     'yum_conf': 'conf/yum.conf',

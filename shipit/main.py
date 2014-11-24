@@ -21,7 +21,7 @@ from __future__ import print_function
 import shipit.config
 import shipit.consumers
 import shipit.log
-import shipit.models
+import shipit.model
 import shipit.producers
 import shipit.reactor
 import shipit.ui
@@ -48,11 +48,11 @@ def command():
 
     shipit.utils.initialize_http(config, fedmsg_config)
 
-    models = shipit.models.assemble_models(config, fedmsg_config)
+    model = shipit.model.assemble_model(config, fedmsg_config)
 
     ui, palette = shipit.ui.assemble_ui(config, fedmsg_config)
 
     mainloop = shipit.reactor.initialize(
-        config, fedmsg_config, ui, palette, models)
+        config, fedmsg_config, ui, palette, model)
 
     mainloop.run()

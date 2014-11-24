@@ -30,9 +30,7 @@ def unhandled_input(key):
         raise urwid.ExitMainLoop()
 
 
-def initialize(config, fedmsg_config, ui, palette, models):
-
-    import shipit.models
+def initialize(config, fedmsg_config, ui, palette, model):
 
     import shipit.consumers
     import shipit.producers
@@ -44,11 +42,11 @@ def initialize(config, fedmsg_config, ui, palette, models):
     hub = moksha.hub.CentralMokshaHub(fedmsg_config, consumers, producers)
 
     startup_routines = [
-        shipit.models.build_nvr_dict,
-        shipit.models.load_pkgdb_packages,
+        model.build_nvr_dict,
+        model.load_pkgdb_packages,
     ]
     for routine in startup_routines:
-        reactor.callWhenRunning(routine, config, fedmsg_config)
+        reactor.callWhenRunning(routine)
 
     def cleanup(*args, **kwargs):
         hub.close()
