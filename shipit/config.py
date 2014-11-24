@@ -18,16 +18,15 @@
 
 from __future__ import print_function
 
+import ConfigParser as configparser
 import copy
+import os
 
 import fedmsg.config
 
 import shipit.consumers
 
 defaults = {
-    # TODO - zomg remove this.
-    'username': 'ralph',
-
     'logsize': 30,
     'http.threads': 10,
     'yum_conf': 'conf/yum.conf',
@@ -45,8 +44,17 @@ def load_config(shipitrc_path=None):
 
 def load_shipitrc_config(path):
     config = copy.copy(defaults)
-    # TODO - load common config from disk
-    loaded = {}
+
+    # Load common config from disk
+    parser = configparser.ConfigParser()
+    filenames = [
+        '/etc/shipitrc',
+        os.path.expanduser('~/.shipitrc'),
+        os.path.abspath('./shipitrc'),
+    ]
+    parser.read(filenames)
+    loaded = parser._sections['shipit']
+
     config.update(loaded)
     return config
 
