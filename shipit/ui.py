@@ -41,6 +41,9 @@ def cols(a, b, c):
 
 
 class Row(urwid.WidgetWrap):
+
+    legend = cols(u'package', u'upstream', u'rawhide')
+
     def __init__(self, package):
         self.package = package
         self.name = package.pkgdb['name']
@@ -88,6 +91,97 @@ class Row(urwid.WidgetWrap):
             return key
 
 
+class StatusBar(urwid.Text):
+    """ The little one-line bar at the very bottom.  """
+
+    default = '    '.join([
+        '/ - Search',
+        'a - Anitya',
+        'q - Quit',
+    ])
+
+    def __repr__(self):
+        return "<StatusBar>"
+
+    def set_text(self, markup=default):
+        super(StatusBar, self).set_text('    ' + markup)
+
+    def ready(self, *args, **kwargs):
+        self.set_text()
+
+class FilterableListBox(urwid.ListBox):
+    """ The big main view of all your packages... """
+
+    def __init__(self, statusbar):
+        self.statusbar = statusbar
+        self.searchmode, self.pattern = False, ''
+        self.reference = []
+        self.set_originals([])
+        super(FilterableListBox, self).__init__(self.reference)
+
+    def __repr__(self):
+        return "<FilterableListBox>"
+
+    def initialize(self, packages):
+        rows = [Row(package) for name, package in packages]
+        self.set_originals(rows)
+        for row, name, package in zip(rows, *zip(*packages)):
+            package.register('rawhide', None, row.set_rawhide)
+            package.register('upstream', None, row.set_upstream)
+
+    def filter_results(self):
+        for i, item in enumerate(self.originals):
+            if re.search(self.pattern, item.name):
+                if item not in self.reference:
+                    self.reference.insert(i, item)
+
+        for item in list(self.reference):
+            if not re.search(self.pattern, item.name):
+                self.reference.remove(item)
+
+        if self.searchmode:
+            self.statusbar.set_text('/' + self.pattern)
+
+    def start_search(self):
+        self.searchmode, self.pattern = True, ''
+        self.filter_results()
+
+    def end_search(self, filter=True):
+        self.searchmode, self.pattern = False, ''
+        if filter:
+            self.filter_results()
+        self.statusbar.set_text()
+
+    def set_originals(self, originals):
+        self.originals = copy.copy(originals)
+        self.filter_results()
+
+    def keypress(self, size, key):
+        if not self.originals:
+            # Then we are not fully initialized, so just let keypresses pass
+            return super(FilterableListBox, self).keypress(size, key)
+
+        if key == '/':
+            self.start_search()
+        elif key == 'esc':
+            self.end_search()
+        elif key == 'enter':
+            self.end_search(filter=False)
+        elif key == 'backspace' and self.searchmode:
+            if self.pattern:
+                self.pattern = self.pattern[:-1]
+            else:
+                self.end_search()
+            self.filter_results()
+        elif self.searchmode:
+            self.pattern += key
+            self.filter_results()
+        elif key in batch_actions:
+            batch_actions[key](self)
+        else:
+            return super(FilterableListBox, self).keypress(size, key)
+
+
 def assemble_ui(config, fedmsg_config, model):
     global batch_actions
     global row_actions
@@ -118,110 +212,18 @@ def assemble_ui(config, fedmsg_config, model):
     }
 
 
-    legend = cols(u'package', u'upstream', u'rawhide')
-
     logbox = urwid.BoxAdapter(urwid.ListBox(shipit.log.logitems), logsize)
     logbox = urwid.LineBox(logbox, 'Logs')
 
-
-    class StatusBar(urwid.Text):
-        default = '    '.join([
-            '/ - Search',
-            'a - Anitya',
-            'q - Quit',
-        ])
-
-        def __repr__(self):
-            return "<StatusBar>"
-
-        def set_text(self, markup=default):
-            super(StatusBar, self).set_text('    ' + markup)
-
-        def ready(self, *args, **kwargs):
-            self.set_text()
-
     statusbar = StatusBar('Initializing...')
+    listbox = FilterableListBox(statusbar=statusbar)
 
-
-    class FilterableListBox(urwid.ListBox):
-        def __init__(self):
-            self.searchmode, self.pattern = False, ''
-            self.reference = []
-            self.set_originals([])
-            super(FilterableListBox, self).__init__(self.reference)
-
-        def __repr__(self):
-            return "<FilterableListBox>"
-
-        def initialize(self, packages):
-            rows = [Row(package) for name, package in packages]
-            self.set_originals(rows)
-            for row, name, package in zip(rows, *zip(*packages)):
-                package.register('rawhide', None, row.set_rawhide)
-                package.register('upstream', None, row.set_upstream)
-
-        def filter_results(self):
-            for i, item in enumerate(self.originals):
-                if re.search(self.pattern, item.name):
-                    if item not in self.reference:
-                        self.reference.insert(i, item)
-
-            for item in list(self.reference):
-                if not re.search(self.pattern, item.name):
-                    self.reference.remove(item)
-
-            if self.searchmode:
-                statusbar.set_text('/' + self.pattern)
-
-        def start_search(self):
-            self.searchmode, self.pattern = True, ''
-            self.filter_results()
-
-        def end_search(self, filter=True):
-            self.searchmode, self.pattern = False, ''
-            if filter:
-                self.filter_results()
-            statusbar.set_text()
-
-        def set_originals(self, originals):
-            self.originals = copy.copy(originals)
-            self.filter_results()
-
-        def keypress(self, size, key):
-            if not self.originals:
-                # Then we are not fully initialized, so just let keypresses pass
-                return super(FilterableListBox, self).keypress(size, key)
-
-            if key == '/':
-                self.start_search()
-            elif key == 'esc':
-                self.end_search()
-            elif key == 'enter':
-                self.end_search(filter=False)
-            elif key == 'backspace' and self.searchmode:
-                if self.pattern:
-                    self.pattern = self.pattern[:-1]
-                else:
-                    self.end_search()
-                self.filter_results()
-            elif self.searchmode:
-                self.pattern += key
-                self.filter_results()
-            elif key in batch_actions:
-                batch_actions[key](self)
-            else:
-                return super(FilterableListBox, self).keypress(size, key)
-
-    listbox = FilterableListBox()
-
+    # Wire up some async update signals.  See shipit.signals.
     model.register('pkgdb', None, listbox.initialize)
     model.register('initialized', None, statusbar.ready)
 
-    right = urwid.Frame(listbox, header=legend)
-
-    # TODO -- eventually put a menu here
-    left = urwid.SolidFill('x')
-
+    right = urwid.Frame(listbox, header=Row.legend)
+    left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
     columns = urwid.Columns([(12, left), right], 2)
     main = urwid.Frame(urwid.Frame(columns, footer=logbox), footer=statusbar)
 
