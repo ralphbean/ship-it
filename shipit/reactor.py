@@ -18,6 +18,8 @@
 
 from __future__ import print_function
 
+import sys
+
 import urwid
 
 import moksha.hub
@@ -35,6 +37,7 @@ def initialize(config, fedmsg_config, ui, palette, model):
     import shipit.consumers
     import shipit.producers
 
+    import shipit.log
     import shipit.utils
 
     consumers = shipit.consumers.all_consumers
@@ -53,8 +56,14 @@ def initialize(config, fedmsg_config, ui, palette, model):
         shipit.utils.http.close()
 
     reactor.addSystemEventTrigger('before', 'shutdown', cleanup)
-    return urwid.MainLoop(
+    result = urwid.MainLoop(
         ui, palette,
         event_loop=urwid.TwistedEventLoop(),
         unhandled_input=unhandled_input,
     )
+
+    # Last thing, print out the log to stderr
+    for item in shipit.log.logitems:
+        sys.stderr.write(item.get_text()[0] + '\n')
+
+    return result
