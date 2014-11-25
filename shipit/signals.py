@@ -26,34 +26,41 @@ from shipit.log import log
 
 
 class AsyncNotifier(object):
-    _callbacks = collections.defaultdict(list)
+    def __init__(self, *args, **kwargs):
+        self.callbacks = collections.defaultdict(list)
+        super(AsyncNotifier, self).__init__(*args, **kwargs)
 
     def signal(self, event, key):
-        entry = self._callbacks[event]
+        entry = self.callbacks[event]
 
         if isinstance(entry, dict):
             entry = entry[key]
 
         if entry:
-            log("Triggering %r callbacks on key %s/%s" % (
-                len(entry), event, str(key)))
+            log("** running %r callbacks on %r key %s/%s" % (
+                len(entry), self, event, str(key)))
 
         args = [key] if key else []
         for callback in entry:
             shipit.reactor.reactor.callLater(0, callback, *args)
 
     def register(self, event, key, callback):
-        entry = self._callbacks[event]
+        entry = self.callbacks[event]
 
         if key and entry and not isinstance(entry, dict):
             raise ValueError("Mixing subkeys and not is disallowed.")
 
         if key and not entry:
-            self._callbacks[event] = collections.defaultdict(list)
+            self.callbacks[event] = collections.defaultdict(list)
 
         if key:
-            entry = self._callbacks[event][key]
+            entry = self.callbacks[event][key]
 
-        log("Registering callback %r on %s/%s" % (callback, event, str(key)))
+        log("** registering callback %r on %r key %s/%s" % (
+            callback, self, event, str(key)))
 
-        entry.append(callback)
+        try:
+            entry.append(callback)
+        except Exception:
+            log("Failure appending, entry is %r" % entry)
+            raise
