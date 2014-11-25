@@ -31,6 +31,12 @@ def cb_repr(callback):
         return callback.im_self
     return callback
 
+def key_repr(key):
+    """ Return a more terse object for debugging. """
+    if isinstance(key, basestring):
+        return key
+    return "<%s>" % type(key).__name__
+
 
 class AsyncNotifier(object):
     def __init__(self, *args, **kwargs):
@@ -46,7 +52,7 @@ class AsyncNotifier(object):
         args = args if args else (key,) + args
         for callback in entry:
             log("** signalling %r <- (%s/%s) <- %r" % (
-                cb_repr(callback), event, str(key), self))
+                cb_repr(callback), event, key_repr(key), self))
             shipit.reactor.reactor.callLater(0, callback, *args, **kwargs)
 
     def register(self, event, key, callback):
@@ -62,7 +68,7 @@ class AsyncNotifier(object):
             entry = self.callbacks[event][key]
 
         log("** registering %r <- %s/%s <- %r" % (
-            cb_repr(callback), event, str(key), self))
+            cb_repr(callback), event, key_repr(key), self))
 
         try:
             entry.append(callback)
