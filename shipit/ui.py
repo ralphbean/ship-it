@@ -47,13 +47,19 @@ class Row(urwid.WidgetWrap):
         loading = '(loading...)'
         super(Row, self).__init__(
             urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
+        if self.package.rawhide:
+            self.set_rawhide(self.package.rawhide)
+        if self.package.upstream:
+            self.set_upstream(self.package.upstream)
 
     def __repr__(self):
         return "<Row %r>" % self.name
 
-    def set_rawhide(self, value):
+    def set_rawhide(self, rawhide):
+        self.rawhide = rawhide
+        version, release = rawhide
         column = 2  # Column number
-        self._w.original_widget.contents[column][0].set_text(value)
+        self._w.original_widget.contents[column][0].set_text(version)
         return shipit.utils.noop()
 
     def get_rawhide(self):
@@ -150,6 +156,9 @@ def assemble_ui(config, fedmsg_config, model):
         def initialize(self, packages):
             rows = [Row(package) for name, package in packages]
             self.set_originals(rows)
+            for row, name, package in zip(rows, *zip(*packages)):
+                package.register('rawhide', None, row.set_rawhide)
+                package.register('upstream', None, row.set_upstream)
 
         def filter_results(self):
             for i, item in enumerate(self.originals):

@@ -25,24 +25,29 @@ import shipit.reactor
 from shipit.log import log
 
 
+def cb_repr(callback):
+    """ Return a more terse object for debugging. """
+    if getattr(callback, 'im_self', None):
+        return callback.im_self
+    return callback
+
+
 class AsyncNotifier(object):
     def __init__(self, *args, **kwargs):
         self.callbacks = collections.defaultdict(list)
         super(AsyncNotifier, self).__init__(*args, **kwargs)
 
-    def signal(self, event, key):
+    def signal(self, event, key, *args, **kwargs):
         entry = self.callbacks[event]
 
         if isinstance(entry, dict):
             entry = entry[key]
 
-        if entry:
-            log("** running %r callbacks on %r key %s/%s" % (
-                len(entry), self, event, str(key)))
-
-        args = [key] if key else []
+        args = args if args else (key,) + args
         for callback in entry:
-            shipit.reactor.reactor.callLater(0, callback, *args)
+            log("** signalling %r <- (%s/%s) <- %r" % (
+                cb_repr(callback), event, str(key), self))
+            shipit.reactor.reactor.callLater(0, callback, *args, **kwargs)
 
     def register(self, event, key, callback):
         entry = self.callbacks[event]
@@ -56,8 +61,8 @@ class AsyncNotifier(object):
         if key:
             entry = self.callbacks[event][key]
 
-        log("** registering callback %r on %r key %s/%s" % (
-            callback, self, event, str(key)))
+        log("** registering %r <- %s/%s <- %r" % (
+            cb_repr(callback), event, str(key), self))
 
         try:
             entry.append(callback)

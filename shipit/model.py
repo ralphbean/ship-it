@@ -103,7 +103,7 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
             if line:
                 name, version, release = line.split("\t")
                 self.nvr_dict[name] = (version, release)
-                self.signal('rawhide', name)
+                self.signal('rawhide', name, self.nvr_dict[name])
 
         yield log("Done building nvr dict with %i items" % len(self.nvr_dict))
 
