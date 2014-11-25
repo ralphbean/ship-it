@@ -31,7 +31,7 @@ class ShipitConsumer(fedmsg.consumers.FedmsgConsumer):
 
     def consume(self, msg):
         topic, msg = msg['topic'], msg['body']
-        shipit.log.log('received fedmsg %r' % topic)
+        #shipit.log.log('received fedmsg %r' % topic)
 
 
 all_consumers = [ShipitConsumer]
