@@ -40,11 +40,12 @@ def assemble_model(config, fedmsg_config):
 
 
 class Package(shipit.signals.AsyncNotifier):
-    def __init__(self, pkgdb):
+    def __init__(self, pkgdb, *args, **kwargs):
         self.name = pkgdb['name']
         self.pkgdb = pkgdb
         self.rawhide = None
         self.upstream = None
+        super(Package, self).__init__(*args, **kwargs)
 
     def set_upstream(self, upstream):
         self.upstream = upstream
@@ -55,7 +56,7 @@ class Package(shipit.signals.AsyncNotifier):
         self.signal('rawhide', rawhide)
 
 
-class PackageList(collections.OrderedDict, shipit.signals.AsyncNotifier):
+class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
     """ Primary DB object.
     Keeps a list of all your packages, with:
     - convenience methods for searching
