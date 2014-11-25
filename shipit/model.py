@@ -47,6 +47,9 @@ class Package(shipit.signals.AsyncNotifier):
         self.upstream = None
         super(Package, self).__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "<Package %r>" % self.name
+
     def set_upstream(self, upstream):
         self.upstream = upstream
         self.signal('upstream', upstream)
@@ -71,6 +74,9 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
         self.username = config['username']
 
         super(PackageList, self).__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return "<PackageList>"
 
     @twisted.internet.defer.inlineCallbacks
     def build_nvr_dict(self):

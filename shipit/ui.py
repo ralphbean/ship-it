@@ -48,6 +48,9 @@ class Row(urwid.WidgetWrap):
         super(Row, self).__init__(
             urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
 
+    def __repr__(self):
+        return "<Row %r>" % self.name
+
     def set_rawhide(self, value):
         column = 2  # Column number
         self._w.original_widget.contents[column][0].set_text(value)
@@ -121,6 +124,10 @@ def assemble_ui(config, fedmsg_config, model):
             'a - Anitya',
             'q - Quit',
         ])
+
+        def __repr__(self):
+            return "<StatusBar>"
+
         def set_text(self, markup=default):
             super(StatusBar, self).set_text('    ' + markup)
 
@@ -136,6 +143,9 @@ def assemble_ui(config, fedmsg_config, model):
             self.reference = []
             self.set_originals([])
             super(FilterableListBox, self).__init__(self.reference)
+
+        def __repr__(self):
+            return "<FilterableListBox>"
 
         def initialize(self, packages):
             rows = [Row(package) for name, package in packages]
