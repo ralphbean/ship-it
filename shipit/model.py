@@ -117,7 +117,7 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
         resp = yield shipit.utils.http.get(url)
         pkgdb = resp.json()
 
-        for package in pkgdb['point of contact'][:1]:
+        for package in pkgdb['point of contact']:
             name = package['name']
             package = self[name] = Package(pkgdb=package)
             self.register('rawhide', name, package.set_rawhide)
