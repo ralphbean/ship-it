@@ -229,7 +229,7 @@ def assemble_ui(config, fedmsg_config, model):
             'packagist.org': 'Packagist',
             'pear.php.net': 'PEAR',
             'pecl.php.net': 'PECL',
-            'pypi.python.org': 'pypi',
+            'pypi.python.org': 'PyPI',
             'rubygems.org': 'Rubygems',
             'sourceforge.net': 'Sourceforge',
         }
@@ -262,7 +262,7 @@ def assemble_ui(config, fedmsg_config, model):
             'npmjs',
             'PEAR',
             'PECL',
-            'pypi',
+            'PyPI',
             'Rubygems',
             'Sourceforge',
         ]
