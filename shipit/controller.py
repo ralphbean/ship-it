@@ -31,6 +31,7 @@ from shipit.log import log
 def assemble_controller(config, fedmsg_config, ui, palette, model):
     return MasterController(config, fedmsg_config, ui, palette, model)
 
+
 class MasterController(object):
     """ Master controller.
 
@@ -111,6 +112,7 @@ class Mixin(object):
     def keypress(self, key):
         return key
 
+
 class Searchable(Mixin):
     def keypress(self, key):
         log('Searchable saw key %r' % key)
@@ -182,4 +184,3 @@ class HelpContext(BaseContext):
             for key, function in context.command_map.items():
                 result[name][key] = inspect.getdoc(function)
         return result
-
