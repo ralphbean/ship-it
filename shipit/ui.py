@@ -210,6 +210,8 @@ def assemble_ui(config, fedmsg_config, model):
         data = dict(
             name=row.package.pkgdb['name'],
             homepage=row.package.pkgdb['upstream_url'],
+            distro='Fedora',
+            package_name=row.package.pkgdb['name'],
         )
 
         # Try to guess at what backend to prefill...
