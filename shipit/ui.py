@@ -62,6 +62,9 @@ class Row(urwid.WidgetWrap):
     def __repr__(self):
         return "<Row %r>" % self.name
 
+    def keypress(self, size, key):
+        return key
+
     def set_rawhide(self, rawhide):
         self.rawhide = rawhide
         version, release = rawhide
@@ -105,13 +108,6 @@ class Row(urwid.WidgetWrap):
     def selectable(self):
         return True
 
-    def keypress(self, size, key):
-        log("Received keypress %r %r" % (size, key))
-        if key in row_actions:
-            row_actions[key](self)
-        else:
-            return key
-
 
 class StatusBar(urwid.Text):
     """ The little one-line bar at the very bottom.  """
@@ -121,15 +117,22 @@ class StatusBar(urwid.Text):
         'a - Anitya',
         'q - Quit',
     ])
+    prompt = '    '
 
     def __repr__(self):
         return "<StatusBar>"
 
     def set_text(self, markup=default):
-        super(StatusBar, self).set_text('    ' + markup)
+        self.markup = markup
+        super(StatusBar, self).set_text(self.prompt + '   ' + markup)
 
     def ready(self, *args, **kwargs):
         self.set_text()
+
+    def set_prompt(self, prompt):
+        self.prompt = prompt
+        self.set_text(self.markup)
+
 
 class FilterableListBox(urwid.ListBox):
     """ The big main view of all your packages... """
@@ -150,6 +153,9 @@ class FilterableListBox(urwid.ListBox):
         for row, name, package in zip(rows, *zip(*packages)):
             package.register('rawhide', None, row.set_rawhide)
             package.register('upstream', None, row.set_upstream)
+
+    def initialized(self):
+        return bool(self.originals)
 
     def filter_results(self):
         for i, item in enumerate(self.originals):
@@ -179,9 +185,9 @@ class FilterableListBox(urwid.ListBox):
         self.filter_results()
 
     def keypress(self, size, key):
-        if not self.originals:
-            # Then we are not fully initialized, so just let keypresses pass
-            return super(FilterableListBox, self).keypress(size, key)
+        result = super(FilterableListBox, self).keypress(size, key)
+        log('list returning result %r for %r' % (result, key))
+        return result
 
         if key == '/':
             self.start_search()
@@ -340,6 +346,7 @@ def assemble_ui(config, fedmsg_config, model):
     left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
     columns = urwid.Columns([(12, left), right], 2)
     main = urwid.Frame(urwid.Frame(columns, footer=logbox), footer=statusbar)
+    main.statusbar = statusbar
 
     # TODO - someday make this configurable from shipitrc
     palette = [
