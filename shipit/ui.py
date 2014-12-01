@@ -123,9 +123,6 @@ class StatusBar(urwid.Text):
         self.markup = markup
         super(StatusBar, self).set_text(self.prompt + '   ' + markup)
 
-    def ready(self, *args, **kwargs):
-        self.set_text()
-
     def set_prompt(self, prompt):
         self.prompt = prompt
         self.set_text(self.markup)
@@ -186,7 +183,6 @@ def assemble_ui(config, fedmsg_config, model):
                 func(item)
         return decorated
 
-
     logbox = urwid.BoxAdapter(urwid.ListBox(shipit.log.logitems), logsize)
     logbox = urwid.LineBox(logbox, 'Logs')
 
@@ -195,7 +191,6 @@ def assemble_ui(config, fedmsg_config, model):
 
     # Wire up some async update signals.  See shipit.signals.
     model.register('pkgdb', None, listbox.initialize)
-    model.register('initialized', None, statusbar.ready)
 
     right = urwid.Frame(listbox, header=Row.legend)
     left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
