@@ -289,6 +289,11 @@ def assemble_ui(config, fedmsg_config, model):
         else:
             row.package.set_upstream(data)
 
+    @twisted.internet.defer.inlineCallbacks
+    def debug(row):
+        yield log('pkgdb: %r' % row.package.pkgdb)
+        yield log('rawhide: %r' % (row.package.rawhide,))
+        yield log('upstream: %r' % row.package.upstream)
 
     batch_actions = {
         'A': basic_batch(open_anitya)
@@ -298,6 +303,7 @@ def assemble_ui(config, fedmsg_config, model):
         'a': open_anitya,
         'n': new_anitya,
         'c': check_anitya,
+        'd': debug,
     }
 
 
