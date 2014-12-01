@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # This file is part of shipit, a curses-based, fedmsg-aware heads up display
 # for Fedora package maintainers.
 # Copyright (C) 2014  Ralph Bean <rbean@redhat.com>
@@ -34,24 +35,25 @@ from shipit.log import log
 # TODO kill this, global state
 row_actions, batch_actions = None, None
 
-def cols(a, b, c):
+def cols(a, b, c, d):
     return urwid.Columns([
         (40, urwid.Text(a)),
-        (13, urwid.Text(b, align='right')),
-        (32, urwid.Text(c, align='right')),
+        (5, urwid.Text(b, align='center')),
+        (13, urwid.Text(c, align='right')),
+        (32, urwid.Text(d, align='right')),
     ], dividechars=1)
 
 
 class Row(urwid.WidgetWrap):
 
-    legend = cols(u'package', u'upstream', u'rawhide')
+    legend = cols(u'package', u'match', u'upstream', u'rawhide')
 
     def __init__(self, package):
         self.package = package
         self.name = package.pkgdb['name']
         loading = '(loading...)'
-        super(Row, self).__init__(
-            urwid.AttrMap(cols(self.name, loading, loading), None, 'reversed'))
+        super(Row, self).__init__(urwid.AttrMap(
+            cols(self.name, u'', loading, loading), None, 'reversed'))
         if self.package.rawhide:
             self.set_rawhide(self.package.rawhide)
         if self.package.upstream:
@@ -63,25 +65,42 @@ class Row(urwid.WidgetWrap):
     def set_rawhide(self, rawhide):
         self.rawhide = rawhide
         version, release = rawhide
-        column = 2  # Column number
+        column = 3  # Column number
         self._w.original_widget.contents[column][0].set_text(version)
+        self.update_match()
         return shipit.utils.noop()
 
     def get_rawhide(self):
-        column = 2  # Column number
-        return self._w.original_widget.contents[column][0].get_text()
+        column = 3  # Column number
+        return self._w.original_widget.contents[column][0].get_text()[0]
 
     def set_upstream(self, upstream):
-        column = 1  # Column number
+        column = 2  # Column number
         self.upstream = upstream
         version = upstream.get('version', '(not found)')
         version = version or '(not checked)'
         self._w.original_widget.contents[column][0].set_text(version)
+        self.update_match()
         return shipit.utils.noop()
 
     def get_upstream(self):
+        column = 2  # Column number
+        return self._w.original_widget.contents[column][0].get_text()[0]
+
+    def update_match(self):
+        rawhide, upstream = self.get_rawhide(), self.get_upstream()
+        if '(' in rawhide or '(' in upstream:
+            self.set_match(u'?')
+        elif rawhide != upstream:
+            self.set_match(u'✗')
+        else:
+            self.set_match(u'✓')
+
+    def set_match(self, match):
         column = 1  # Column number
-        return self._w.original_widget.contents[column][0].get_text()
+        self.match = match
+        self._w.original_widget.contents[column][0].set_text(match)
+        return shipit.utils.noop()
 
     def selectable(self):
         return True
