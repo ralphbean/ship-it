@@ -21,6 +21,7 @@ from __future__ import print_function
 import abc
 import collections
 import inspect
+import operator
 
 import urwid
 
@@ -58,6 +59,7 @@ class MasterController(object):
         context = self.contexts[self.context]
         context.assume_primacy()
         self.ui.statusbar.set_prompt(context.prompt)
+        self.ui.statusbar.set_text(self.short_help())
 
     def keypress(self, key):
         log('MasterController got key %r' % (key,))
@@ -66,6 +68,27 @@ class MasterController(object):
             return
         context = self.contexts[self.context]
         context.keypress(key)  # Ignore the result
+
+    def short_help(self):
+        help_dict = self.build_help_dict()[self.context]
+        short_docs = collections.defaultdict(list)
+        for key, docs in help_dict.items():
+            short, long = docs
+            short_docs[short].append(key)
+
+        return "   ".join([
+            "%s - %s" % ("|".join(keys), s) for s, keys in sorted(
+                short_docs.items(), key=operator.itemgetter(0))
+        ])
+
+    def build_help_dict(self):
+        result = collections.defaultdict(lambda: collections.defaultdict(dict))
+        for name, context in self.contexts.items():
+            for key, function in context.command_map.items():
+                doc = inspect.getdoc(function)
+                short, long = doc.split(' | ', 1)
+                result[name][key] = (short, long)
+        return result
 
 
 class BaseContext(object):
@@ -105,7 +128,7 @@ class BaseContext(object):
         return key
 
     def switch_main(self, key):
-        """ Return to the top-level context. """
+        """ Back | Return to the top-level context. """
         self.controller.set_context('main')
 
 
@@ -170,7 +193,6 @@ class MainContext(BaseContext, Searchable):
         super(MainContext, self).__init__(*args, **kwargs)
         self.command_map = {
             'q': self.quit,
-            'Q': self.quit,
             'esc': self.quit,
             '?': self.switch_help,
             'a': self.switch_anitya,
@@ -180,15 +202,15 @@ class MainContext(BaseContext, Searchable):
         pass
 
     def quit(self, key):
-        """ Quit """
+        """ Quit | Quit """
         raise urwid.ExitMainLoop()
 
     def switch_anitya(self, key):
-        """ Enter anitya (release-monitoring.org) mode. """
+        """ Anitya | Enter anitya (release-monitoring.org) mode. """
         self.controller.set_context('anitya')
 
     def switch_help(self, key):
-        """ Help on available commands. """
+        """ Help | Help on available commands. """
         self.controller.set_context('help')
 
 
@@ -199,7 +221,6 @@ class AnityaContext(BaseContext):
         super(AnityaContext, self).__init__(*args, **kwargs)
         self.command_map = {
             'q': self.switch_main,
-            'Q': self.switch_main,
             'esc': self.switch_main,
         }
 
@@ -214,7 +235,6 @@ class HelpContext(BaseContext):
         super(HelpContext, self).__init__(*args, **kwargs)
         self.command_map = {
             'q': self.switch_main,
-            'Q': self.switch_main,
             'esc': self.switch_main,
         }
 
@@ -223,8 +243,4 @@ class HelpContext(BaseContext):
         #log('%s' % pprint.pformat(self.build_help_dict()))
 
     def build_help_dict(self):
-        result = collections.defaultdict(lambda: collections.defaultdict(dict))
-        for name, context in self.controller.contexts.items():
-            for key, function in context.command_map.items():
-                result[name][key] = inspect.getdoc(function)
-        return result
+        return self.controller.build_help_dict()
