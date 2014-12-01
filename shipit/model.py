@@ -30,12 +30,8 @@ import shipit.signals
 import shipit.utils
 from shipit.log import log
 
-# TODO -- kill this.  we shouldn't import ui in model
-import shipit.ui
-
 
 def assemble_model(config, fedmsg_config):
-    # TODO -- not sure what to do with this yet.
     return PackageList(config, fedmsg_config)
 
 
