@@ -60,7 +60,10 @@ class MasterController(object):
         self.ui.statusbar.set_prompt(context.prompt)
 
     def keypress(self, key):
-        log('MasterController got key %r' % key)
+        log('MasterController got key %r' % (key,))
+        if isinstance(key, tuple):
+            # Then it is actually a mouse click.
+            return
         context = self.contexts[self.context]
         context.keypress(key)  # Ignore the result
 
