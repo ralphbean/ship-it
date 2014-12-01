@@ -139,7 +139,6 @@ class FilterableListBox(urwid.ListBox):
 
     def __init__(self, statusbar):
         self.statusbar = statusbar
-        self.searchmode, self.pattern = False, ''
         self.reference = []
         self.set_originals([])
         super(FilterableListBox, self).__init__(self.reference)
@@ -157,57 +156,22 @@ class FilterableListBox(urwid.ListBox):
     def initialized(self):
         return bool(self.originals)
 
-    def filter_results(self):
+    def set_originals(self, originals):
+        self.originals = copy.copy(originals)
+        self.filter_results(searchmode=False, pattern='')
+
+    def filter_results(self, searchmode, pattern):
         for i, item in enumerate(self.originals):
-            if re.search(self.pattern, item.name):
+            if re.search(pattern, item.name):
                 if item not in self.reference:
                     self.reference.insert(i, item)
 
         for item in list(self.reference):
-            if not re.search(self.pattern, item.name):
+            if not re.search(pattern, item.name):
                 self.reference.remove(item)
 
-        if self.searchmode:
-            self.statusbar.set_text('/' + self.pattern)
-
-    def start_search(self):
-        self.searchmode, self.pattern = True, ''
-        self.filter_results()
-
-    def end_search(self, filter=True):
-        self.searchmode, self.pattern = False, ''
-        if filter:
-            self.filter_results()
-        self.statusbar.set_text()
-
-    def set_originals(self, originals):
-        self.originals = copy.copy(originals)
-        self.filter_results()
-
-    def keypress(self, size, key):
-        result = super(FilterableListBox, self).keypress(size, key)
-        log('list returning result %r for %r' % (result, key))
-        return result
-
-        if key == '/':
-            self.start_search()
-        elif key == 'esc':
-            self.end_search()
-        elif key == 'enter':
-            self.end_search(filter=False)
-        elif key == 'backspace' and self.searchmode:
-            if self.pattern:
-                self.pattern = self.pattern[:-1]
-            else:
-                self.end_search()
-            self.filter_results()
-        elif self.searchmode:
-            self.pattern += key
-            self.filter_results()
-        elif key in batch_actions:
-            batch_actions[key](self)
-        else:
-            return super(FilterableListBox, self).keypress(size, key)
+        if searchmode:
+            self.statusbar.set_text('/' + pattern)
 
 
 def assemble_ui(config, fedmsg_config, model):
@@ -346,7 +310,10 @@ def assemble_ui(config, fedmsg_config, model):
     left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
     columns = urwid.Columns([(12, left), right], 2)
     main = urwid.Frame(urwid.Frame(columns, footer=logbox), footer=statusbar)
+
+    # Hang these here for easy reference
     main.statusbar = statusbar
+    main.listbox = listbox
 
     # TODO - someday make this configurable from shipitrc
     palette = [

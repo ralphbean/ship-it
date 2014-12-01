@@ -69,8 +69,9 @@ class BaseContext(object):
     __metaclass__ = abc.ABCMeta
     prompt = '?????'
 
-    def __init__(self, controller):
+    def __init__(self, controller, *args, **kwargs):
         self.controller = controller
+        super(BaseContext, self).__init__(*args, **kwargs)
 
     @abc.abstractmethod
     def assume_primacy(self):
@@ -114,16 +115,56 @@ class Mixin(object):
 
 
 class Searchable(Mixin):
+    def __init__(self, *args, **kwargs):
+        self.enabled, self.pattern = False, ''
+        super(Searchable, self).__init__(*args, **kwargs)
+
+    def filter_results(self):
+        self.controller.ui.listbox.filter_results(self.enabled, self.pattern)
+
+    def start_search(self):
+        self.enabled, self.pattern = True, ''
+        self.filter_results()
+
+    def end_search(self, filter=True):
+        self.enabled, self.pattern = False, ''
+        if filter:
+            self.filter_results()
+        self.controller.ui.statusbar.set_text()
+
     def keypress(self, key):
         log('Searchable saw key %r' % key)
-        return key
+        if not self.controller.ui.listbox.initialized():
+            return key
+
+        if key == '/':
+            self.start_search()
+        elif key == 'esc':
+            self.end_search()
+        elif key == 'enter':
+            self.end_search(filter=False)
+        elif key == 'backspace' and self.enabled:
+            if self.pattern:
+                self.pattern = self.pattern[:-1]
+            else:
+                self.end_search()
+            self.filter_results()
+        elif self.enabled:
+            self.pattern += key
+            self.filter_results()
+        #elif key in batch_actions:
+        #    batch_actions[key](self)
+        else:
+            return key  # unhandled
+
+        return None  # handled
 
 
 class MainContext(BaseContext, Searchable):
     prompt = 'READY'
 
     def __init__(self, *args, **kwargs):
-        super(type(self), self).__init__(*args, **kwargs)
+        super(MainContext, self).__init__(*args, **kwargs)
         self.command_map = {
             'q': self.quit,
             'Q': self.quit,
@@ -152,7 +193,7 @@ class AnityaContext(BaseContext):
     prompt = 'ANITYA'
 
     def __init__(self, *args, **kwargs):
-        super(type(self), self).__init__(*args, **kwargs)
+        super(AnityaContext, self).__init__(*args, **kwargs)
         self.command_map = {
             'q': self.switch_main,
             'Q': self.switch_main,
@@ -167,7 +208,7 @@ class HelpContext(BaseContext):
     prompt = 'HELP'
 
     def __init__(self, *args, **kwargs):
-        super(type(self), self).__init__(*args, **kwargs)
+        super(HelpContext, self).__init__(*args, **kwargs)
         self.command_map = {
             'q': self.switch_main,
             'Q': self.switch_main,
