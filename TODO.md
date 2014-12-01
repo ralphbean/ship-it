@@ -1,0 +1,8 @@
+- [ ] Add anitya-specific filters
+- [ ] List anitya-related bug in the UI
+- [ ] Command to kick off bumped scratch build.
+- [ ] Make fedmsg update the UI when it fails or succeeds
+- [ ] Command to commit, push, and kick of real rawhide build.
+- [ ] Make fedmsg update the UI when it fails or succeeds.
+- [ ] Command to open the anitya related bug in a web browser
+- [ ] Command to close the anitya related bug in one keystroke
