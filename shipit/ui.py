@@ -20,8 +20,10 @@ from __future__ import print_function
 
 import copy
 import re
+import urllib
 import webbrowser
 
+import twisted.internet.defer
 import urwid
 
 import shipit.log
@@ -73,6 +75,7 @@ class Row(urwid.WidgetWrap):
         column = 1  # Column number
         self.upstream = upstream
         version = upstream.get('version', '(not found)')
+        version = version or '(not checked)'
         self._w.original_widget.contents[column][0].set_text(version)
         return shipit.utils.noop()
 
@@ -203,12 +206,96 @@ def assemble_ui(config, fedmsg_config, model):
         log("Opening %r" % url)
         webbrowser.open_new_tab(url)
 
+    def new_anitya(row):
+        data = dict(
+            name=row.package.pkgdb['name'],
+            homepage=row.package.pkgdb['upstream_url'],
+        )
+
+        # Try to guess at what backend to prefill...
+        backends = {
+            'ftp.debian.org': 'Debian project',
+            'www.drupal.org': 'Drupal7',
+            'freecode.com': 'Freshmeat',
+            'github.com': 'Github',
+            'download.gnome.org': 'GNOME',
+            'ftp.gnu.org': 'GNU project',
+            'code.google.com': 'Google code',
+            'hackage.haskell.org': 'Hackage',
+            'launchpad.net': 'launchpad',
+            'www.npmjs.org': 'npmjs',
+            'packagist.org': 'Packagist',
+            'pear.php.net': 'PEAR',
+            'pecl.php.net': 'PECL',
+            'pypi.python.org': 'pypi',
+            'rubygems.org': 'Rubygems',
+            'sourceforge.net': 'Sourceforge',
+        }
+        for target, backend in backends.items():
+            if target in row.package.pkgdb['upstream_url']:
+                data['backend'] = backend
+                break
+
+        # It's not always the case that these need removed, but often enough...
+        prefixes = [
+            'python-',
+            'php-',
+            'nodejs-',
+        ]
+        for prefix in prefixes:
+            if data['name'].startswith(prefix):
+                data['name'] = data['name'][len(prefix):]
+
+        # For these, we can get a pretty good guess at the upstream name
+        easy_guesses = [
+            'Debian project',
+            'Drupal7',
+            'Freshmeat',
+            'Github',
+            'GNOME',
+            'GNU project',
+            'Google code',
+            'Hackage',
+            'launchpad',
+            'npmjs',
+            'PEAR',
+            'PECL',
+            'pypi',
+            'Rubygems',
+            'Sourceforge',
+        ]
+        for guess in easy_guesses:
+            if data['backend'] == guess:
+                data['name'] = data['homepage'].strip('/').split('/')[-1]
+
+        url = anitya_url + '/project/new?' + urllib.urlencode(data)
+        log("Opening %r" % url)
+        webbrowser.open_new_tab(url)
+
+    @twisted.internet.defer.inlineCallbacks
+    def check_anitya(row):
+        idx = row.upstream.get('id')
+        if not idx:
+            log("Cannot check anitya.  Anitya has no record of this.")
+            return
+
+        url = '%s/api/version/get' % anitya_url
+        resp = yield shipit.utils.http.post(url, data=dict(id=idx))
+        data = resp.json()
+        if 'error' in data:
+            log('Anitya error: %r' % data['error'])
+        else:
+            row.package.set_upstream(data)
+
+
     batch_actions = {
         'A': basic_batch(open_anitya)
     }
 
     row_actions = {
-        'a': open_anitya
+        'a': open_anitya,
+        'n': new_anitya,
+        'c': check_anitya,
     }
 
 
