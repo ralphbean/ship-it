@@ -21,10 +21,7 @@ from __future__ import print_function
 
 import copy
 import re
-import urllib
-import webbrowser
 
-import twisted.internet.defer
 import urwid
 
 import shipit.log
@@ -174,9 +171,12 @@ class FilterableListBox(urwid.ListBox):
             self.statusbar.set_text('/' + pattern)
 
 
+class MainUI(urwid.Frame):
+    def get_active_row(self):
+        return self.listbox.focus
+
+
 def assemble_ui(config, fedmsg_config, model):
-    global batch_actions
-    global row_actions
     anitya_url = config['anitya_url']
     logsize = config['logsize']
 
@@ -185,115 +185,6 @@ def assemble_ui(config, fedmsg_config, model):
             for item in list_object.reference:
                 func(item)
         return decorated
-
-    def open_anitya(row):
-        idx = row.upstream.get('id')
-        if idx:
-            url = '%s/project/%i' % (anitya_url, idx)
-        else:
-            url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
-        log("Opening %r" % url)
-        webbrowser.open_new_tab(url)
-
-    def new_anitya(row):
-        data = dict(
-            name=row.package.pkgdb['name'],
-            homepage=row.package.pkgdb['upstream_url'],
-            distro='Fedora',
-            package_name=row.package.pkgdb['name'],
-        )
-
-        # Try to guess at what backend to prefill...
-        backends = {
-            'ftp.debian.org': 'Debian project',
-            'www.drupal.org': 'Drupal7',
-            'freecode.com': 'Freshmeat',
-            'github.com': 'Github',
-            'download.gnome.org': 'GNOME',
-            'ftp.gnu.org': 'GNU project',
-            'code.google.com': 'Google code',
-            'hackage.haskell.org': 'Hackage',
-            'launchpad.net': 'launchpad',
-            'www.npmjs.org': 'npmjs',
-            'packagist.org': 'Packagist',
-            'pear.php.net': 'PEAR',
-            'pecl.php.net': 'PECL',
-            'pypi.python.org': 'PyPI',
-            'rubygems.org': 'Rubygems',
-            'sourceforge.net': 'Sourceforge',
-        }
-        for target, backend in backends.items():
-            if target in row.package.pkgdb['upstream_url']:
-                data['backend'] = backend
-                break
-
-        # It's not always the case that these need removed, but often enough...
-        prefixes = [
-            'python-',
-            'php-',
-            'nodejs-',
-        ]
-        for prefix in prefixes:
-            if data['name'].startswith(prefix):
-                data['name'] = data['name'][len(prefix):]
-
-        # For these, we can get a pretty good guess at the upstream name
-        easy_guesses = [
-            'Debian project',
-            'Drupal7',
-            'Freshmeat',
-            'Github',
-            'GNOME',
-            'GNU project',
-            'Google code',
-            'Hackage',
-            'launchpad',
-            'npmjs',
-            'PEAR',
-            'PECL',
-            'PyPI',
-            'Rubygems',
-            'Sourceforge',
-        ]
-        for guess in easy_guesses:
-            if data['backend'] == guess:
-                data['name'] = data['homepage'].strip('/').split('/')[-1]
-
-        url = anitya_url + '/project/new?' + urllib.urlencode(data)
-        log("Opening %r" % url)
-        webbrowser.open_new_tab(url)
-
-    @twisted.internet.defer.inlineCallbacks
-    def check_anitya(row):
-        idx = row.upstream.get('id')
-        if not idx:
-            log("Cannot check anitya.  Anitya has no record of this.")
-            return
-
-        url = '%s/api/version/get' % anitya_url
-        resp = yield shipit.utils.http.post(url, data=dict(id=idx))
-        data = resp.json()
-        if 'error' in data:
-            log('Anitya error: %r' % data['error'])
-        else:
-            row.package.set_upstream(data)
-
-    @twisted.internet.defer.inlineCallbacks
-    def debug(row):
-        yield log('pkgdb: %r' % row.package.pkgdb)
-        yield log('rawhide: %r' % (row.package.rawhide,))
-        yield log('upstream: %r' % row.package.upstream)
-
-    batch_actions = {
-        'A': basic_batch(open_anitya)
-    }
-
-    row_actions = {
-        'a': open_anitya,
-        'n': new_anitya,
-        'c': check_anitya,
-        'd': debug,
-    }
 
 
     logbox = urwid.BoxAdapter(urwid.ListBox(shipit.log.logitems), logsize)
@@ -309,7 +200,7 @@ def assemble_ui(config, fedmsg_config, model):
     right = urwid.Frame(listbox, header=Row.legend)
     left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
     columns = urwid.Columns([(12, left), right], 2)
-    main = urwid.Frame(urwid.Frame(columns, footer=logbox), footer=statusbar)
+    main = MainUI(urwid.Frame(columns, footer=logbox), footer=statusbar)
 
     # Hang these here for easy reference
     main.statusbar = statusbar

@@ -22,8 +22,13 @@ import abc
 import collections
 import inspect
 import operator
+import urllib
+import webbrowser
 
 import urwid
+import twisted.internet.defer
+
+import shipit.utils
 
 from shipit.log import log
 
@@ -196,6 +201,7 @@ class MainContext(BaseContext, Searchable):
             'esc': self.quit,
             '?': self.switch_help,
             'a': self.switch_anitya,
+            'd': self.debug,
         }
 
     def assume_primacy(self):
@@ -213,19 +219,133 @@ class MainContext(BaseContext, Searchable):
         """ Help | Help on available commands. """
         self.controller.set_context('help')
 
+    @twisted.internet.defer.inlineCallbacks
+    def debug(self, key):
+        """ Debug | Log some debug information about the highlighted row. """
+        row = self.controller.ui.get_active_row()
+        yield log('pkgdb: %r' % row.package.pkgdb)
+        yield log('rawhide: %r' % (row.package.rawhide,))
+        yield log('upstream: %r' % row.package.upstream)
+
+
 
 class AnityaContext(BaseContext):
     prompt = 'ANITYA'
 
     def __init__(self, *args, **kwargs):
         super(AnityaContext, self).__init__(*args, **kwargs)
+        self.anitya_url = self.controller.config['anitya_url']
         self.command_map = {
             'q': self.switch_main,
             'esc': self.switch_main,
+            'o': self.open_anitya,
+            'n': self.new_anitya,
+            'c': self.check_anitya,
         }
 
     def assume_primacy(self):
         log('anitya assuming primacy')
+
+    def open_anitya(self, key):
+        """ Open | Open an anitya project in your web browser. """
+        anitya_url = self.anitya_url
+        row = self.controller.ui.get_active_row()
+        idx = row.upstream.get('id')
+        if idx:
+            url = '%s/project/%i' % (anitya_url, idx)
+        else:
+            url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
+        log("Opening %r" % url)
+        webbrowser.open_new_tab(url)
+
+    def new_anitya(self, key):
+        """ New | Add project to release-monitoring.org """
+        anitya_url = self.anitya_url
+        row = self.controller.ui.get_active_row()
+        data = dict(
+            name=row.package.pkgdb['name'],
+            homepage=row.package.pkgdb['upstream_url'],
+            distro='Fedora',
+            package_name=row.package.pkgdb['name'],
+        )
+
+        # Try to guess at what backend to prefill...
+        backends = {
+            'ftp.debian.org': 'Debian project',
+            'www.drupal.org': 'Drupal7',
+            'freecode.com': 'Freshmeat',
+            'github.com': 'Github',
+            'download.gnome.org': 'GNOME',
+            'ftp.gnu.org': 'GNU project',
+            'code.google.com': 'Google code',
+            'hackage.haskell.org': 'Hackage',
+            'launchpad.net': 'launchpad',
+            'www.npmjs.org': 'npmjs',
+            'packagist.org': 'Packagist',
+            'pear.php.net': 'PEAR',
+            'pecl.php.net': 'PECL',
+            'pypi.python.org': 'PyPI',
+            'rubygems.org': 'Rubygems',
+            'sourceforge.net': 'Sourceforge',
+        }
+        for target, backend in backends.items():
+            if target in row.package.pkgdb['upstream_url']:
+                data['backend'] = backend
+                break
+
+        # It's not always the case that these need removed, but often enough...
+        prefixes = [
+            'python-',
+            'php-',
+            'nodejs-',
+        ]
+        for prefix in prefixes:
+            if data['name'].startswith(prefix):
+                data['name'] = data['name'][len(prefix):]
+
+        # For these, we can get a pretty good guess at the upstream name
+        easy_guesses = [
+            'Debian project',
+            'Drupal7',
+            'Freshmeat',
+            'Github',
+            'GNOME',
+            'GNU project',
+            'Google code',
+            'Hackage',
+            'launchpad',
+            'npmjs',
+            'PEAR',
+            'PECL',
+            'PyPI',
+            'Rubygems',
+            'Sourceforge',
+        ]
+        for guess in easy_guesses:
+            if data['backend'] == guess:
+                data['name'] = data['homepage'].strip('/').split('/')[-1]
+
+        url = anitya_url + '/project/new?' + urllib.urlencode(data)
+        log("Opening %r" % url)
+        webbrowser.open_new_tab(url)
+
+    @twisted.internet.defer.inlineCallbacks
+    def check_anitya(self, key):
+        """ Check | Force a check of the latest upstream package. """
+        anitya_url = self.anitya_url
+        row = self.controller.ui.get_active_row()
+        idx = row.upstream.get('id')
+        if not idx:
+            log("Cannot check anitya.  Anitya has no record of this.")
+            return
+
+        url = '%s/api/version/get' % anitya_url
+        resp = yield shipit.utils.http.post(url, data=dict(id=idx))
+        data = resp.json()
+        if 'error' in data:
+            log('Anitya error: %r' % data['error'])
+        else:
+            row.package.set_upstream(data)
 
 
 class HelpContext(BaseContext):
