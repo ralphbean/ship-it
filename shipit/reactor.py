@@ -25,12 +25,9 @@ import moksha.hub
 from twisted.internet import reactor
 
 
-def unhandled_input(key):
-    if key in ['q', 'Q']:
-        raise urwid.ExitMainLoop()
 
 
-def initialize(config, fedmsg_config, ui, palette, model):
+def initialize(config, fedmsg_config, ui, palette, model, controller):
 
     import shipit.consumers
     import shipit.producers
@@ -56,7 +53,7 @@ def initialize(config, fedmsg_config, ui, palette, model):
     result = urwid.MainLoop(
         ui, palette,
         event_loop=urwid.TwistedEventLoop(),
-        unhandled_input=unhandled_input,
+        unhandled_input=controller.keypress,
     )
 
     return result

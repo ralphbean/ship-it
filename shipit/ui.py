@@ -21,10 +21,7 @@ from __future__ import print_function
 
 import copy
 import re
-import urllib
-import webbrowser
 
-import twisted.internet.defer
 import urwid
 
 import shipit.log
@@ -61,6 +58,9 @@ class Row(urwid.WidgetWrap):
 
     def __repr__(self):
         return "<Row %r>" % self.name
+
+    def keypress(self, size, key):
+        return key
 
     def set_rawhide(self, rawhide):
         self.rawhide = rawhide
@@ -105,13 +105,6 @@ class Row(urwid.WidgetWrap):
     def selectable(self):
         return True
 
-    def keypress(self, size, key):
-        log("Received keypress %r %r" % (size, key))
-        if key in row_actions:
-            row_actions[key](self)
-        else:
-            return key
-
 
 class StatusBar(urwid.Text):
     """ The little one-line bar at the very bottom.  """
@@ -121,22 +114,28 @@ class StatusBar(urwid.Text):
         'a - Anitya',
         'q - Quit',
     ])
+    prompt = '    '
 
     def __repr__(self):
         return "<StatusBar>"
 
     def set_text(self, markup=default):
-        super(StatusBar, self).set_text('    ' + markup)
+        self.markup = markup
+        super(StatusBar, self).set_text(self.prompt + '   ' + markup)
 
     def ready(self, *args, **kwargs):
         self.set_text()
+
+    def set_prompt(self, prompt):
+        self.prompt = prompt
+        self.set_text(self.markup)
+
 
 class FilterableListBox(urwid.ListBox):
     """ The big main view of all your packages... """
 
     def __init__(self, statusbar):
         self.statusbar = statusbar
-        self.searchmode, self.pattern = False, ''
         self.reference = []
         self.set_originals([])
         super(FilterableListBox, self).__init__(self.reference)
@@ -151,62 +150,33 @@ class FilterableListBox(urwid.ListBox):
             package.register('rawhide', None, row.set_rawhide)
             package.register('upstream', None, row.set_upstream)
 
-    def filter_results(self):
+    def initialized(self):
+        return bool(self.originals)
+
+    def set_originals(self, originals):
+        self.originals = copy.copy(originals)
+        self.filter_results(searchmode=False, pattern='')
+
+    def filter_results(self, searchmode, pattern):
         for i, item in enumerate(self.originals):
-            if re.search(self.pattern, item.name):
+            if re.search(pattern, item.name):
                 if item not in self.reference:
                     self.reference.insert(i, item)
 
         for item in list(self.reference):
-            if not re.search(self.pattern, item.name):
+            if not re.search(pattern, item.name):
                 self.reference.remove(item)
 
-        if self.searchmode:
-            self.statusbar.set_text('/' + self.pattern)
+        if searchmode:
+            self.statusbar.set_text('/' + pattern)
 
-    def start_search(self):
-        self.searchmode, self.pattern = True, ''
-        self.filter_results()
 
-    def end_search(self, filter=True):
-        self.searchmode, self.pattern = False, ''
-        if filter:
-            self.filter_results()
-        self.statusbar.set_text()
-
-    def set_originals(self, originals):
-        self.originals = copy.copy(originals)
-        self.filter_results()
-
-    def keypress(self, size, key):
-        if not self.originals:
-            # Then we are not fully initialized, so just let keypresses pass
-            return super(FilterableListBox, self).keypress(size, key)
-
-        if key == '/':
-            self.start_search()
-        elif key == 'esc':
-            self.end_search()
-        elif key == 'enter':
-            self.end_search(filter=False)
-        elif key == 'backspace' and self.searchmode:
-            if self.pattern:
-                self.pattern = self.pattern[:-1]
-            else:
-                self.end_search()
-            self.filter_results()
-        elif self.searchmode:
-            self.pattern += key
-            self.filter_results()
-        elif key in batch_actions:
-            batch_actions[key](self)
-        else:
-            return super(FilterableListBox, self).keypress(size, key)
+class MainUI(urwid.Frame):
+    def get_active_row(self):
+        return self.listbox.focus
 
 
 def assemble_ui(config, fedmsg_config, model):
-    global batch_actions
-    global row_actions
     anitya_url = config['anitya_url']
     logsize = config['logsize']
 
@@ -215,115 +185,6 @@ def assemble_ui(config, fedmsg_config, model):
             for item in list_object.reference:
                 func(item)
         return decorated
-
-    def open_anitya(row):
-        idx = row.upstream.get('id')
-        if idx:
-            url = '%s/project/%i' % (anitya_url, idx)
-        else:
-            url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
-        log("Opening %r" % url)
-        webbrowser.open_new_tab(url)
-
-    def new_anitya(row):
-        data = dict(
-            name=row.package.pkgdb['name'],
-            homepage=row.package.pkgdb['upstream_url'],
-            distro='Fedora',
-            package_name=row.package.pkgdb['name'],
-        )
-
-        # Try to guess at what backend to prefill...
-        backends = {
-            'ftp.debian.org': 'Debian project',
-            'www.drupal.org': 'Drupal7',
-            'freecode.com': 'Freshmeat',
-            'github.com': 'Github',
-            'download.gnome.org': 'GNOME',
-            'ftp.gnu.org': 'GNU project',
-            'code.google.com': 'Google code',
-            'hackage.haskell.org': 'Hackage',
-            'launchpad.net': 'launchpad',
-            'www.npmjs.org': 'npmjs',
-            'packagist.org': 'Packagist',
-            'pear.php.net': 'PEAR',
-            'pecl.php.net': 'PECL',
-            'pypi.python.org': 'PyPI',
-            'rubygems.org': 'Rubygems',
-            'sourceforge.net': 'Sourceforge',
-        }
-        for target, backend in backends.items():
-            if target in row.package.pkgdb['upstream_url']:
-                data['backend'] = backend
-                break
-
-        # It's not always the case that these need removed, but often enough...
-        prefixes = [
-            'python-',
-            'php-',
-            'nodejs-',
-        ]
-        for prefix in prefixes:
-            if data['name'].startswith(prefix):
-                data['name'] = data['name'][len(prefix):]
-
-        # For these, we can get a pretty good guess at the upstream name
-        easy_guesses = [
-            'Debian project',
-            'Drupal7',
-            'Freshmeat',
-            'Github',
-            'GNOME',
-            'GNU project',
-            'Google code',
-            'Hackage',
-            'launchpad',
-            'npmjs',
-            'PEAR',
-            'PECL',
-            'PyPI',
-            'Rubygems',
-            'Sourceforge',
-        ]
-        for guess in easy_guesses:
-            if data['backend'] == guess:
-                data['name'] = data['homepage'].strip('/').split('/')[-1]
-
-        url = anitya_url + '/project/new?' + urllib.urlencode(data)
-        log("Opening %r" % url)
-        webbrowser.open_new_tab(url)
-
-    @twisted.internet.defer.inlineCallbacks
-    def check_anitya(row):
-        idx = row.upstream.get('id')
-        if not idx:
-            log("Cannot check anitya.  Anitya has no record of this.")
-            return
-
-        url = '%s/api/version/get' % anitya_url
-        resp = yield shipit.utils.http.post(url, data=dict(id=idx))
-        data = resp.json()
-        if 'error' in data:
-            log('Anitya error: %r' % data['error'])
-        else:
-            row.package.set_upstream(data)
-
-    @twisted.internet.defer.inlineCallbacks
-    def debug(row):
-        yield log('pkgdb: %r' % row.package.pkgdb)
-        yield log('rawhide: %r' % (row.package.rawhide,))
-        yield log('upstream: %r' % row.package.upstream)
-
-    batch_actions = {
-        'A': basic_batch(open_anitya)
-    }
-
-    row_actions = {
-        'a': open_anitya,
-        'n': new_anitya,
-        'c': check_anitya,
-        'd': debug,
-    }
 
 
     logbox = urwid.BoxAdapter(urwid.ListBox(shipit.log.logitems), logsize)
@@ -339,7 +200,11 @@ def assemble_ui(config, fedmsg_config, model):
     right = urwid.Frame(listbox, header=Row.legend)
     left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
     columns = urwid.Columns([(12, left), right], 2)
-    main = urwid.Frame(urwid.Frame(columns, footer=logbox), footer=statusbar)
+    main = MainUI(urwid.Frame(columns, footer=logbox), footer=statusbar)
+
+    # Hang these here for easy reference
+    main.statusbar = statusbar
+    main.listbox = listbox
 
     # TODO - someday make this configurable from shipitrc
     palette = [

@@ -51,8 +51,8 @@ class AsyncNotifier(object):
 
         args = args if args else (key,) + args
         for callback in entry:
-            log("** signalling %r <- (%s/%s) <- %r" % (
-                cb_repr(callback), event, key_repr(key), self))
+            #log("** signalling %r <- (%s/%s) <- %r" % (
+            #    cb_repr(callback), event, key_repr(key), self))
             shipit.reactor.reactor.callLater(0, callback, *args, **kwargs)
 
     def register(self, event, key, callback):
@@ -67,11 +67,7 @@ class AsyncNotifier(object):
         if key:
             entry = self.callbacks[event][key]
 
-        log("** registering %r <- %s/%s <- %r" % (
-            cb_repr(callback), event, key_repr(key), self))
+        #log("** registering %r <- %s/%s <- %r" % (
+        #    cb_repr(callback), event, key_repr(key), self))
 
-        try:
-            entry.append(callback)
-        except Exception:
-            log("Failure appending, entry is %r" % entry)
-            raise
+        entry.append(callback)
