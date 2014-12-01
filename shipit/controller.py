@@ -19,6 +19,8 @@
 from __future__ import print_function
 
 import abc
+import collections
+import inspect
 
 import urwid
 
@@ -78,13 +80,29 @@ class BaseContext(object):
         """
         pass
 
-    @abc.abstractmethod
     def keypress(self, key):
         """ Handle keypress for each context.
 
         Each context has its own commands which should be handled here.
         """
+        log('BaseContext saw key %r' % key)
+
+        # First, see if any mixins want to handle this
+        parent = super(BaseContext, self)
+        if hasattr(parent, 'keypress'):
+            result = parent.keypress(key)
+            if result is None:
+                return None
+
+        if key in self.command_map:
+            return self.command_map[key](key)
+
         return key
+
+    def switch_main(self, key):
+        """ Return to the top-level context. """
+        self.controller.set_context('main')
+
 
 class Mixin(object):
     __metaclass__ = abc.ABCMeta
@@ -102,43 +120,66 @@ class Searchable(Mixin):
 class MainContext(BaseContext, Searchable):
     prompt = 'READY'
 
+    def __init__(self, *args, **kwargs):
+        super(type(self), self).__init__(*args, **kwargs)
+        self.command_map = {
+            'q': self.quit,
+            'Q': self.quit,
+            'esc': self.quit,
+            '?': self.switch_help,
+            'a': self.switch_anitya,
+        }
+
     def assume_primacy(self):
         pass
 
-    def keypress(self, key):
-        log('MainContext saw key %r' % key)
-        # First, see if any mixins want to handle this
-        result = super(MainContext, self).keypress(key)
-        if result is None:
-            return None
+    def quit(self, key):
+        """ Quit """
+        raise urwid.ExitMainLoop()
 
-        if key in ['q', 'Q']:
-            raise urwid.ExitMainLoop()
-        if key in ['?']:
-            return self.controller.set_context('help')
-        if key in ['a']:
-            return self.controller.set_context('anitya')
+    def switch_anitya(self, key):
+        """ Enter anitya (release-monitoring.org) mode. """
+        self.controller.set_context('anitya')
 
-        return key
+    def switch_help(self, key):
+        """ Help on available commands. """
+        self.controller.set_context('help')
+
 
 class AnityaContext(BaseContext):
     prompt = 'ANITYA'
 
+    def __init__(self, *args, **kwargs):
+        super(type(self), self).__init__(*args, **kwargs)
+        self.command_map = {
+            'q': self.switch_main,
+            'Q': self.switch_main,
+            'esc': self.switch_main,
+        }
+
     def assume_primacy(self):
         log('anitya assuming primacy')
-
-    def keypress(self, key):
-        log('anitya keypress %r' % key)
-
-        if key in ['q', 'Q', 'esc']:
-            return self.controller.set_context('main')
 
 
 class HelpContext(BaseContext):
     prompt = 'HELP'
 
+    def __init__(self, *args, **kwargs):
+        super(type(self), self).__init__(*args, **kwargs)
+        self.command_map = {
+            'q': self.switch_main,
+            'Q': self.switch_main,
+            'esc': self.switch_main,
+        }
+
     def assume_primacy(self):
         log('help assuming primacy')
+        #log('%s' % pprint.pformat(self.build_help_dict()))
 
-    def keypress(self, key):
-        log('help keypress %r' % key)
+    def build_help_dict(self):
+        result = collections.defaultdict(lambda: collections.defaultdict(dict))
+        for name, context in self.controller.contexts.items():
+            for key, function in context.command_map.items():
+                result[name][key] = inspect.getdoc(function)
+        return result
+
