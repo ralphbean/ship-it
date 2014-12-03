@@ -21,40 +21,44 @@ from __future__ import print_function
 import ConfigParser as configparser
 import copy
 import os
+import sys
 
 import fedmsg.config
 
 import shipit.consumers
+import shipit.wizard
 
 defaults = {
     'logsize': 30,
-    'logfile': '/var/tmp/shipit.log',
+    'logfile': os.path.expanduser('~/.config/shipit/shipit.log'),
+    'yum_conf': os.path.expanduser('~/.config/shipit/yum.conf'),
 
     'http.threads': 10,
-    'yum_conf': 'conf/yum.conf',
 
     # URLs
     'pkgdb_url': 'https://admin.fedoraproject.org/pkgdb',
     'anitya_url': 'https://release-monitoring.org',
 }
 
+if 'BODHI_USER' in os.environ:
+    defaults['username'] = os.environ['BODHI_USER']
 
-def load_config(shipitrc_path=None):
+
+def load_config():
     """ Return tuple containing shipitrc config and fedmsg config """
-    return load_shipitrc_config(shipitrc_path), load_fedmsg_config()
+    return load_shipitrc_config(), load_fedmsg_config()
 
 
-def load_shipitrc_config(path):
+def load_shipitrc_config():
     config = copy.copy(defaults)
 
     # Load common config from disk
     parser = configparser.ConfigParser()
-    filenames = [
-        '/etc/shipitrc',
-        os.path.expanduser('~/.shipitrc'),
-        os.path.abspath('./shipitrc'),
-    ]
-    parser.read(filenames)
+    filename = os.path.expanduser('~/.config/shipit/shipitrc')
+    if not parser.read([filename]):
+        # If no file was read, let's create one and quit
+        sys.exit(shipit.wizard.run(filename))
+
     loaded = parser._sections['shipit']
 
     config.update(loaded)
@@ -84,4 +88,3 @@ def load_fedmsg_config():
         (c.config_key, True) for c in shipit.consumers.all_consumers
     ]))
     return config
-

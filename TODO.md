@@ -1,7 +1,8 @@
 - [x] Add anitya-specific filters.
 - [x] Distinguish between filters and commands.
 - [x] Add mass actions back in.
-- [ ] Implement the shipitrc wizard
+- [x] Implement the shipitrc wizard
+- [ ] Silence moksha and fedmsg warnings at startup, for the love of god.
 - [ ] Implement some assume_primary stuff for contexts
 - [ ] List pkgdb monitored status
 - [ ] Allow changing pkgdb monitored status
