@@ -229,7 +229,7 @@ class MainContext(BaseContext, Searchable):
 
 
 
-class AnityaContext(BaseContext):
+class AnityaContext(BaseContext, Searchable):
     prompt = 'ANITYA'
 
     def __init__(self, *args, **kwargs):
