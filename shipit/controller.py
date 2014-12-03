@@ -102,6 +102,7 @@ class BaseContext(object):
 
     def __init__(self, controller, *args, **kwargs):
         self.controller = controller
+        self.command_map = {}
         super(BaseContext, self).__init__(*args, **kwargs)
 
     @abc.abstractmethod
@@ -149,11 +150,17 @@ class Searchable(Mixin):
     def __init__(self, *args, **kwargs):
         self.enabled, self.pattern = False, ''
         super(Searchable, self).__init__(*args, **kwargs)
+        self.command_map.update({
+            '/': self.start_search,
+        })
 
     def filter_results(self):
         self.controller.ui.listbox.filter_results(self.enabled, self.pattern)
 
-    def start_search(self):
+    def start_search(self, key):
+        """ Search | Filter packages with a regular expression. """
+        if not self.controller.ui.listbox.initialized():
+            return key
         self.enabled, self.pattern = True, ''
         self.filter_results()
 
@@ -161,16 +168,21 @@ class Searchable(Mixin):
         self.enabled, self.pattern = False, ''
         if filter:
             self.filter_results()
-        self.controller.ui.statusbar.set_text()
+        self.controller.ui.statusbar.set_text(self.controller.short_help())
 
     def keypress(self, key):
         log('Searchable saw key %r' % key)
         if not self.controller.ui.listbox.initialized():
+            log('Searchable bailing: listbox not initialized.')
             return key
 
-        if key == '/':
-            self.start_search()
-        elif key == 'esc':
+        # If we have not already started a search, then don't intercept keys.
+        if not self.enabled:
+            log('Searchable bailing: search not already in place.')
+            return key
+
+        if key == 'esc':
+            log('Searchable handling "esc" appropriately.')
             self.end_search()
         elif key == 'enter':
             self.end_search(filter=False)
@@ -183,8 +195,6 @@ class Searchable(Mixin):
         elif self.enabled:
             self.pattern += key
             self.filter_results()
-        #elif key in batch_actions:
-        #    batch_actions[key](self)
         else:
             return key  # unhandled
 
@@ -196,13 +206,13 @@ class MainContext(BaseContext, Searchable):
 
     def __init__(self, *args, **kwargs):
         super(MainContext, self).__init__(*args, **kwargs)
-        self.command_map = {
+        self.command_map.update({
             'q': self.quit,
             'esc': self.quit,
             '?': self.switch_help,
             'a': self.switch_anitya,
             'd': self.debug,
-        }
+        })
 
     def assume_primacy(self):
         pass
@@ -235,13 +245,13 @@ class AnityaContext(BaseContext, Searchable):
     def __init__(self, *args, **kwargs):
         super(AnityaContext, self).__init__(*args, **kwargs)
         self.anitya_url = self.controller.config['anitya_url']
-        self.command_map = {
+        self.command_map.update({
             'q': self.switch_main,
             'esc': self.switch_main,
             'o': self.open_anitya,
             'n': self.new_anitya,
             'c': self.check_anitya,
-        }
+        })
 
     def assume_primacy(self):
         log('anitya assuming primacy')

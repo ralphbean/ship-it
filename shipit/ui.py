@@ -109,17 +109,12 @@ class Row(urwid.WidgetWrap):
 class StatusBar(urwid.Text):
     """ The little one-line bar at the very bottom.  """
 
-    default = '    '.join([
-        '/ - Search',
-        'a - Anitya',
-        'q - Quit',
-    ])
     prompt = '    '
 
     def __repr__(self):
         return "<StatusBar>"
 
-    def set_text(self, markup=default):
+    def set_text(self, markup):
         self.markup = markup
         super(StatusBar, self).set_text(self.prompt + '   ' + markup)
 
