@@ -150,7 +150,7 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
         fake_packages = [{
             'name': 'foobar1',
         },{
-            'name': 'foobar2',
+            'name': 'foobaz2',
         }]
         fake_upstreams = [{
             'version': '1.2.3',
@@ -159,7 +159,7 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
         }]
         self.nvr_dict = {
             'foobar1': ('1.1.3', '1'),
-            'foobar2': ('2.3.0', '1'),
+            'foobaz2': ('2.3.0', '1'),
         }
 
         for package in fake_packages:

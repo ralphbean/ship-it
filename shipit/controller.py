@@ -239,7 +239,10 @@ class MainContext(BaseContext, Searchable):
             'esc': self.quit,
             '?': self.switch_help,
             'a': self.switch_anitya,
+
             'd': self.debug,
+            's': self.add_silly,
+            'r': self.remove_silly,
         })
 
     def assume_primacy(self):
@@ -265,6 +268,17 @@ class MainContext(BaseContext, Searchable):
         yield log('rawhide: %r' % (row.package.rawhide,))
         yield log('upstream: %r' % row.package.upstream)
 
+    def add_silly(self, key):
+        """ Add Silly | Install a silly test filter. """
+        def callback(package):
+            return package.name.startswith('foobaz')
+        self.controller.ui.listbox.add_filter('silly', callback)
+        self.controller.ui.listbox.filter_results()
+
+    def remove_silly(self, key):
+        """ Remove Silly | Remove the silly test filter. """
+        self.controller.ui.listbox.remove_filter('silly')
+        self.controller.ui.listbox.filter_results()
 
 
 class AnityaContext(BaseContext, Searchable):
