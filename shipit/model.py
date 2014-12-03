@@ -141,3 +141,44 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
 
         delta = time.time() - start
         yield log('Done loading data in %is' % delta)
+
+    @twisted.internet.defer.inlineCallbacks
+    def fake_load_pkgdb_packages(self):
+
+        start = time.time()
+
+        fake_packages = [{
+            'name': 'foobar1',
+        },{
+            'name': 'foobar2',
+        }]
+        fake_upstreams = [{
+            'version': '1.2.3',
+        },{
+            'version': '2.3.4',
+        }]
+        self.nvr_dict = {
+            'foobar1': ('1.1.3', '1'),
+            'foobar2': ('2.3.0', '1'),
+        }
+
+        for package in fake_packages:
+            name = package['name']
+            package = self[name] = Package(pkgdb=package)
+            self.register('rawhide', name, package.set_rawhide)
+            if name in self.nvr_dict:
+                yield package.set_rawhide(self.nvr_dict.get(name))
+
+        self.signal('pkgdb', self.items())
+
+        delta = time.time() - start
+
+        yield log('Found %i packages in %is' % (len(self), delta))
+
+        for project, name, package in zip(fake_upstreams, *zip(*self.items())):
+            yield package.set_upstream(project)
+
+        self.signal('initialized', self.items())
+
+        delta = time.time() - start
+        yield log('Done loading data in %is' % delta)
