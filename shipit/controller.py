@@ -291,10 +291,32 @@ class AnityaContext(BaseContext, Searchable):
             'o': self.open_anitya,
             'n': self.new_anitya,
             'c': self.check_anitya,
+            'f': self.toggle_mismatch_filter,
         })
 
     def assume_primacy(self):
         log('anitya assuming primacy')
+
+    def toggle_mismatch_filter(self, key):
+        """ (Un)Filter | Toggle showing upstream/rawhide mismatches only. """
+
+        # First try to remove it.  If it was there, then bail
+        if self.controller.ui.listbox.remove_filter('anitya_mismatch'):
+            self.controller.ui.listbox.filter_results()
+            return None
+
+        # Otherwise, add it.
+        def callback(package):
+            rawhide, upstream = package.get_rawhide(), package.get_upstream()
+            if '(' in rawhide or '(' in upstream:
+                return False
+            elif rawhide != upstream:
+                return True
+            else:
+                return False
+
+        self.controller.ui.listbox.add_filter('anitya_mismatch', callback)
+        self.controller.ui.listbox.filter_results()
 
     def open_anitya(self, key):
         """ Open | Open an anitya project in your web browser. """

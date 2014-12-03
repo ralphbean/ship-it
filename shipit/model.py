@@ -159,7 +159,7 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
         }]
         self.nvr_dict = {
             'foobar1': ('1.1.3', '1'),
-            'foobaz2': ('2.3.0', '1'),
+            'foobaz2': ('2.3.4', '2'),
         }
 
         for package in fake_packages:
