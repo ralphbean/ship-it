@@ -76,25 +76,47 @@ class MasterController(object):
         context.keypress(key)  # Ignore the result
 
     def short_help(self):
-        help_dict = self.build_help_dict()[self.context]
+        cmd_dict, flt_dict = self.build_help_dict()
+        cmd_dict, flt_dict = cmd_dict[self.context], flt_dict[self.context]
+
         short_docs = collections.defaultdict(list)
-        for key, docs in help_dict.items():
+        for key, docs in cmd_dict.items():
             short, long = docs
             short_docs[short].append(key)
 
-        return "   ".join([
+        cmd_help = "   ".join([
             "%s - %s" % ("|".join(keys), s) for s, keys in sorted(
                 short_docs.items(), key=operator.itemgetter(0))
         ])
 
+        short_docs = collections.defaultdict(list)
+        for key, docs in flt_dict.items():
+            short, long = docs
+            short_docs[short].append(key)
+
+        flt_help = "   ".join([
+            "%s - %s" % ("|".join(keys), s) for s, keys in sorted(
+                short_docs.items(), key=operator.itemgetter(0))
+        ])
+
+        return "commands: %s     filters: %s" % (cmd_help, flt_help)
+
     def build_help_dict(self):
-        result = collections.defaultdict(lambda: collections.defaultdict(dict))
+        cmds = collections.defaultdict(lambda: collections.defaultdict(dict))
         for name, context in self.contexts.items():
             for key, function in context.command_map.items():
                 doc = inspect.getdoc(function)
                 short, long = doc.split(' | ', 1)
-                result[name][key] = (short, long)
-        return result
+                cmds[name][key] = (short, long)
+
+        flts = collections.defaultdict(lambda: collections.defaultdict(dict))
+        for name, context in self.contexts.items():
+            for key, function in context.filter_map.items():
+                doc = inspect.getdoc(function)
+                short, long = doc.split(' | ', 1)
+                flts[name][key] = (short, long)
+
+        return cmds, flts
 
 
 class BaseContext(object):
@@ -104,6 +126,7 @@ class BaseContext(object):
     def __init__(self, controller, *args, **kwargs):
         self.controller = controller
         self.command_map = {}
+        self.filter_map = {}
         super(BaseContext, self).__init__(*args, **kwargs)
 
     @abc.abstractmethod
@@ -132,6 +155,9 @@ class BaseContext(object):
         if key in self.command_map:
             return self.command_map[key](key)
 
+        if key in self.filter_map:
+            return self.filter_map[key](key)
+
         return key
 
     def switch_main(self, key):
@@ -157,7 +183,7 @@ class Searchable(Mixin):
 
         super(Searchable, self).__init__(*args, **kwargs)
 
-        self.command_map.update({
+        self.filter_map.update({
             '/': self.start_search,
         })
 
@@ -239,6 +265,8 @@ class MainContext(BaseContext, Searchable):
             'a': self.switch_anitya,
 
             'd': self.debug,
+        })
+        self.filter_map.update({
             's': self.add_silly,
             'r': self.remove_silly,
         })
@@ -288,9 +316,12 @@ class AnityaContext(BaseContext, Searchable):
         self.command_map.update({
             'q': self.switch_main,
             'esc': self.switch_main,
+
             'o': self.open_anitya,
             'n': self.new_anitya,
             'c': self.check_anitya,
+        })
+        self.filter_map.update({
             'm': self.toggle_mismatch_filter,
             'a': self.toggle_missing_filter,
         })
