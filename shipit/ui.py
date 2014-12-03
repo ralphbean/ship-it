@@ -104,7 +104,7 @@ class Row(urwid.WidgetWrap):
 
 
 class StatusBar(urwid.Text):
-    """ The little one-line bar at the very bottom.  """
+    """ One of the little one-line bar at the very bottom.  """
 
     prompt = '    '
 
@@ -123,8 +123,8 @@ class StatusBar(urwid.Text):
 class FilterableListBox(urwid.ListBox):
     """ The big main view of all your packages... """
 
-    def __init__(self, statusbar):
-        self.statusbar = statusbar
+    def __init__(self, commandbar):
+        self.commandbar = commandbar
         self.filters = {}
         self.reference = []
         self.set_originals([])
@@ -186,8 +186,10 @@ def assemble_ui(config, fedmsg_config, model):
     logbox = urwid.BoxAdapter(urwid.ListBox(shipit.log.logitems), logsize)
     logbox = urwid.LineBox(logbox, 'Logs')
 
-    statusbar = StatusBar('Initializing...')
-    listbox = FilterableListBox(statusbar=statusbar)
+    filterbar = StatusBar('')
+    commandbar = StatusBar('Initializing...')
+    footer = urwid.Pile([filterbar, commandbar])
+    listbox = FilterableListBox(commandbar=commandbar)
 
     # Wire up some async update signals.  See shipit.signals.
     model.register('pkgdb', None, listbox.initialize)
@@ -195,10 +197,11 @@ def assemble_ui(config, fedmsg_config, model):
     right = urwid.Frame(listbox, header=Row.legend)
     left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
     columns = urwid.Columns([(12, left), right], 2)
-    main = MainUI(urwid.Frame(columns, footer=logbox), footer=statusbar)
+    main = MainUI(urwid.Frame(columns, footer=logbox), footer=footer)
 
     # Hang these here for easy reference
-    main.statusbar = statusbar
+    main.filterbar = filterbar
+    main.commandbar = commandbar
     main.listbox = listbox
 
     # TODO - someday make this configurable from shipitrc

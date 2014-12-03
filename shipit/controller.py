@@ -64,8 +64,10 @@ class MasterController(object):
         self.context = name
         context = self.contexts[self.context]
         context.assume_primacy()
-        self.ui.statusbar.set_prompt(context.prompt)
-        self.ui.statusbar.set_text(self.short_help())
+        self.ui.commandbar.set_prompt(context.prompt)
+        self.ui.commandbar.set_text(self.short_command_help())
+        self.ui.filterbar.set_prompt(' ' * len(context.prompt))
+        self.ui.filterbar.set_text(self.short_filter_help())
 
     def keypress(self, key):
         log('MasterController got key %r' % (key,))
@@ -75,31 +77,24 @@ class MasterController(object):
         context = self.contexts[self.context]
         context.keypress(key)  # Ignore the result
 
-    def short_help(self):
-        cmd_dict, flt_dict = self.build_help_dict()
-        cmd_dict, flt_dict = cmd_dict[self.context], flt_dict[self.context]
+    def short_command_help(self):
+        return self._short_help(0)
+
+    def short_filter_help(self):
+        return self._short_help(1)
+
+    def _short_help(self, index):
+        help_dict = self.build_help_dict()[index][self.context]
 
         short_docs = collections.defaultdict(list)
-        for key, docs in cmd_dict.items():
+        for key, docs in help_dict.items():
             short, long = docs
             short_docs[short].append(key)
 
-        cmd_help = "   ".join([
+        return "   ".join([
             "%s - %s" % ("|".join(keys), s) for s, keys in sorted(
                 short_docs.items(), key=operator.itemgetter(0))
         ])
-
-        short_docs = collections.defaultdict(list)
-        for key, docs in flt_dict.items():
-            short, long = docs
-            short_docs[short].append(key)
-
-        flt_help = "   ".join([
-            "%s - %s" % ("|".join(keys), s) for s, keys in sorted(
-                short_docs.items(), key=operator.itemgetter(0))
-        ])
-
-        return "commands: %s     filters: %s" % (cmd_help, flt_help)
 
     def build_help_dict(self):
         cmds = collections.defaultdict(lambda: collections.defaultdict(dict))
@@ -191,7 +186,7 @@ class Searchable(Mixin):
         """ Tell the UI to reconsider its list of filter callbacks. """
         self.controller.ui.listbox.filter_results()
         if self.accepting:
-            self.controller.ui.statusbar.set_text('/' + self.pattern)
+            self.controller.ui.commandbar.set_text('/' + self.pattern)
 
     def insert_callback(self):
         """ Add our callback to the UI filterer. """
@@ -218,7 +213,8 @@ class Searchable(Mixin):
 
     def end_search(self):
         self.accepting, self.pattern = False, ''
-        self.controller.ui.statusbar.set_text(self.controller.short_help())
+        self.controller.ui.commandbar.set_text(
+            self.controller.short_command_help())
 
     def keypress(self, key):
         if not self.controller.ui.listbox.initialized():
@@ -295,14 +291,14 @@ class MainContext(BaseContext, Searchable):
         yield log('upstream: %r' % row.package.upstream)
 
     def add_silly(self, key):
-        """ Add Silly | Install a silly test filter. """
+        """ Add Silly Debug Filter | Install a silly test filter. """
         def callback(package):
             return package.name.startswith('foobaz')
         self.controller.ui.listbox.add_filter('silly', callback)
         self.controller.ui.listbox.filter_results()
 
     def remove_silly(self, key):
-        """ Remove Silly | Remove the silly test filter. """
+        """ Remove Silliness | Remove the silly test filter. """
         self.controller.ui.listbox.remove_filter('silly')
         self.controller.ui.listbox.filter_results()
 
