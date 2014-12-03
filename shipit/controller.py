@@ -291,14 +291,16 @@ class AnityaContext(BaseContext, Searchable):
             'o': self.open_anitya,
             'n': self.new_anitya,
             'c': self.check_anitya,
-            'f': self.toggle_mismatch_filter,
+            'm': self.toggle_mismatch_filter,
+            'a': self.toggle_missing_filter,
         })
 
     def assume_primacy(self):
         log('anitya assuming primacy')
 
     def toggle_mismatch_filter(self, key):
-        """ (Un)Filter | Toggle showing upstream/rawhide mismatches only. """
+        """ Show Mismatches | Toggle showing only upstream/rawhide mismatches.
+        """
 
         # First try to remove it.  If it was there, then bail
         if self.controller.ui.listbox.remove_filter('anitya_mismatch'):
@@ -316,6 +318,22 @@ class AnityaContext(BaseContext, Searchable):
                 return False
 
         self.controller.ui.listbox.add_filter('anitya_mismatch', callback)
+        self.controller.ui.listbox.filter_results()
+
+    def toggle_missing_filter(self, key):
+        """ Show Missing | Toggle showing only packages missing from anitya.
+        """
+
+        # First try to remove it.  If it was there, then bail
+        if self.controller.ui.listbox.remove_filter('anitya_missing'):
+            self.controller.ui.listbox.filter_results()
+            return None
+
+        # Otherwise, add it.
+        def callback(package):
+            return package.get_upstream() == '(not found)'
+
+        self.controller.ui.listbox.add_filter('anitya_missing', callback)
         self.controller.ui.listbox.filter_results()
 
     def open_anitya(self, key):
