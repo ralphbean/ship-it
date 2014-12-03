@@ -47,25 +47,25 @@ class MainContext(base.BaseContext, base.Searchable):
     def assume_primacy(self):
         pass
 
-    def quit(self, key):
+    def quit(self, key, rows):
         """ Quit | Quit """
         raise urwid.ExitMainLoop()
 
-    def switch_anitya(self, key):
+    def switch_anitya(self, key, rows):
         """ Anitya | Enter anitya (release-monitoring.org) mode. """
         self.controller.set_context('anitya')
 
-    def switch_help(self, key):
+    def switch_help(self, key, rows):
         """ Help | Help on available commands. """
         self.controller.set_context('help')
 
     @twisted.internet.defer.inlineCallbacks
-    def debug(self, key):
+    def debug(self, key, rows):
         """ Debug | Log some debug information about the highlighted row. """
-        row = self.controller.ui.get_active_row()
-        yield log('pkgdb: %r' % row.package.pkgdb)
-        yield log('rawhide: %r' % (row.package.rawhide,))
-        yield log('upstream: %r' % row.package.upstream)
+        for row in rows:
+            yield log('pkgdb: %r' % row.package.pkgdb)
+            yield log('rawhide: %r' % (row.package.rawhide,))
+            yield log('upstream: %r' % row.package.upstream)
 
     def add_silly(self, key):
         """ Add Silly Debug Filter | Install a silly test filter. """

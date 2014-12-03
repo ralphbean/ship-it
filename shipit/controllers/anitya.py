@@ -89,28 +89,22 @@ class AnityaContext(base.BaseContext, base.Searchable):
         self.controller.ui.listbox.add_filter('anitya_missing', callback)
         self.controller.ui.listbox.filter_results()
 
-    def open_anitya(self, key):
+    def open_anitya(self, key, rows):
         """ Open | Open an anitya project in your web browser. """
         anitya_url = self.anitya_url
-        row = self.controller.ui.get_active_row()
-        idx = row.upstream.get('id')
-        if idx:
-            url = '%s/project/%i' % (anitya_url, idx)
-        else:
-            url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
-        log("Opening %r" % url)
-        webbrowser.open_new_tab(url)
+        for row in rows:
+            idx = row.upstream.get('id')
+            if idx:
+                url = '%s/project/%i' % (anitya_url, idx)
+            else:
+                url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
+            log("Opening %r" % url)
+            webbrowser.open_new_tab(url)
 
-    def new_anitya(self, key):
+    def new_anitya(self, key, rows):
         """ New | Add project to release-monitoring.org """
+
         anitya_url = self.anitya_url
-        row = self.controller.ui.get_active_row()
-        data = dict(
-            name=row.package.pkgdb['name'],
-            homepage=row.package.pkgdb['upstream_url'],
-            distro='Fedora',
-            package_name=row.package.pkgdb['name'],
-        )
 
         # Try to guess at what backend to prefill...
         backends = {
@@ -131,21 +125,12 @@ class AnityaContext(base.BaseContext, base.Searchable):
             'rubygems.org': 'Rubygems',
             'sourceforge.net': 'Sourceforge',
         }
-        for target, backend in backends.items():
-            if target in row.package.pkgdb['upstream_url']:
-                data['backend'] = backend
-                break
-
         # It's not always the case that these need removed, but often enough...
         prefixes = [
             'python-',
             'php-',
             'nodejs-',
         ]
-        for prefix in prefixes:
-            if data['name'].startswith(prefix):
-                data['name'] = data['name'][len(prefix):]
-
         # For these, we can get a pretty good guess at the upstream name
         easy_guesses = [
             'Debian project',
@@ -164,28 +149,46 @@ class AnityaContext(base.BaseContext, base.Searchable):
             'Rubygems',
             'Sourceforge',
         ]
-        for guess in easy_guesses:
-            if data['backend'] == guess:
-                data['name'] = data['homepage'].strip('/').split('/')[-1]
 
-        url = anitya_url + '/project/new?' + urllib.urlencode(data)
-        log("Opening %r" % url)
-        webbrowser.open_new_tab(url)
+        for row in rows:
+            data = dict(
+                name=row.package.pkgdb['name'],
+                homepage=row.package.pkgdb['upstream_url'],
+                distro='Fedora',
+                package_name=row.package.pkgdb['name'],
+            )
+
+            for target, backend in backends.items():
+                if target in row.package.pkgdb['upstream_url']:
+                    data['backend'] = backend
+                    break
+
+            for prefix in prefixes:
+                if data['name'].startswith(prefix):
+                    data['name'] = data['name'][len(prefix):]
+
+            for guess in easy_guesses:
+                if data['backend'] == guess:
+                    data['name'] = data['homepage'].strip('/').split('/')[-1]
+
+            url = anitya_url + '/project/new?' + urllib.urlencode(data)
+            log("Opening %r" % url)
+            webbrowser.open_new_tab(url)
 
     @twisted.internet.defer.inlineCallbacks
-    def check_anitya(self, key):
+    def check_anitya(self, key, rows):
         """ Check | Force a check of the latest upstream package. """
         anitya_url = self.anitya_url
-        row = self.controller.ui.get_active_row()
-        idx = row.upstream.get('id')
-        if not idx:
-            log("Cannot check anitya.  Anitya has no record of this.")
-            return
+        for row in rows:
+            idx = row.upstream.get('id')
+            if not idx:
+                log("Cannot check anitya.  Anitya has no record of this.")
+                return
 
-        url = '%s/api/version/get' % anitya_url
-        resp = yield shipit.utils.http.post(url, data=dict(id=idx))
-        data = resp.json()
-        if 'error' in data:
-            log('Anitya error: %r' % data['error'])
-        else:
-            row.package.set_upstream(data)
+            url = '%s/api/version/get' % anitya_url
+            resp = yield shipit.utils.http.post(url, data=dict(id=idx))
+            data = resp.json()
+            if 'error' in data:
+                log('Anitya error: %r' % data['error'])
+            else:
+                row.package.set_upstream(data)

@@ -24,9 +24,6 @@ import inspect
 import operator
 import re
 
-from shipit.log import log
-
-
 
 def assemble_controller(config, fedmsg_config, ui, palette, model):
     return MasterController(config, fedmsg_config, ui, palette, model)
@@ -46,6 +43,7 @@ class MasterController(object):
         self.palette = palette
         self.model = model
 
+        # Import these in here to avoid circular imports
         import shipit.controllers.main
 
         import shipit.controllers.anitya
@@ -68,7 +66,6 @@ class MasterController(object):
         self.ui.filterbar.set_text(self.short_filter_help())
 
     def keypress(self, key):
-        log('MasterController got key %r' % (key,))
         if isinstance(key, tuple):
             # Then it is actually a mouse click.
             return
@@ -136,7 +133,6 @@ class BaseContext(object):
 
         Each context has its own commands which should be handled here.
         """
-        log('BaseContext saw key %r' % key)
 
         # First, see if any mixins want to handle this
         parent = super(BaseContext, self)
@@ -145,15 +141,23 @@ class BaseContext(object):
             if result is None:
                 return None
 
+        # Look for the command and run it
         if key in self.command_map:
-            return self.command_map[key](key)
+            row = self.controller.ui.get_active_row()
+            return self.command_map[key](key, [row])
 
+        # Capital-cased commands can be applied in batch
+        if key.lower() in self.command_map:
+            rows = self.controller.ui.listbox.reference
+            self.command_map[key.lower()](key, rows)
+
+        # Otherwise, check the list of filters to apply
         if key in self.filter_map:
             return self.filter_map[key](key)
 
         return key
 
-    def switch_main(self, key):
+    def switch_main(self, key, rows):
         """ Back | Return to the top-level context. """
         self.controller.set_context('main')
 
