@@ -169,7 +169,11 @@ class Searchable(Mixin):
 
     def insert_callback(self):
         """ Add our callback to the UI filterer. """
-        return self.controller.ui.listbox.add_filter('search', self.check)
+
+        def callback(package):
+            return re.search(self.pattern, package.name)
+
+        return self.controller.ui.listbox.add_filter('search', callback)
 
     def remove_callback(self):
         """ Remove our callback from the UI filterer.
@@ -178,12 +182,6 @@ class Searchable(Mixin):
         """
         return self.controller.ui.listbox.remove_filter('search')
 
-    def check(self, package):
-        """ This is a callback called by the UI when it wants to know if this
-        filter think it should include or exclude a given package from the
-        view.
-        """
-        return re.search(self.pattern, package.name)
 
     def start_search(self, key):
         """ Search | Filter packages with a regular expression. """
