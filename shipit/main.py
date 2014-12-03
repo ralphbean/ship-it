@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import shipit.config
 import shipit.consumers
-import shipit.controller
+import shipit.controllers
 import shipit.log
 import shipit.model
 import shipit.producers
@@ -53,7 +53,7 @@ def command():
 
     ui, palette = shipit.ui.assemble_ui(config, fedmsg_config, model)
 
-    controller = shipit.controller.assemble_controller(
+    controller = shipit.controllers.assemble_controller(
         config, fedmsg_config, ui, palette, model)
 
     mainloop = shipit.reactor.initialize(
