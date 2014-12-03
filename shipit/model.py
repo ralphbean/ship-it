@@ -151,11 +151,17 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
             'name': 'foobar1',
         },{
             'name': 'foobaz2',
+            'monitored': True,
+        },{
+            'name': 'bangbar3',
+            'monitored': False,
         }]
         fake_upstreams = [{
             'version': '1.2.3',
         },{
             'version': '2.3.4',
+        },{
+            'version': '0.0.1',
         }]
         self.nvr_dict = {
             'foobar1': ('1.1.3', '1'),
