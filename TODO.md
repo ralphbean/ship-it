@@ -1,6 +1,7 @@
 - [x] Add anitya-specific filters.
 - [x] Distinguish between filters and commands.
 - [x] Add mass actions back in.
+- [ ] Implement the shipitrc wizard
 - [ ] Implement some assume_primary stuff for contexts
 - [ ] List pkgdb monitored status
 - [ ] Allow changing pkgdb monitored status
