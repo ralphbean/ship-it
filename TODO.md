@@ -1,6 +1,8 @@
 - [x] Add anitya-specific filters.
 - [x] Distinguish between filters and commands.
 - [x] Add mass actions back in.
+- [ ] List pkgdb monitored status
+- [ ] Allow changing pkgdb monitored status
 - [ ] List anitya-related bug in the UI
 - [ ] Command to kick off bumped scratch build.
 - [ ] Make fedmsg update the UI when it fails or succeeds
