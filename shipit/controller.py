@@ -22,6 +22,7 @@ import abc
 import collections
 import inspect
 import operator
+import re
 import urllib
 import webbrowser
 
@@ -148,53 +149,80 @@ class Mixin(object):
 
 class Searchable(Mixin):
     def __init__(self, *args, **kwargs):
-        self.enabled, self.pattern = False, ''
+
+        # accepting is a boolean indicating that we are accepting keystrokes
+        self.accepting = False
+        # pattern is the regex we are building to search with.
+        self.pattern = ''
+
         super(Searchable, self).__init__(*args, **kwargs)
+
         self.command_map.update({
             '/': self.start_search,
         })
 
-    def filter_results(self):
-        self.controller.ui.listbox.filter_results(self.enabled, self.pattern)
+    def trigger_filtration(self):
+        """ Tell the UI to reconsider its list of filter callbacks. """
+        self.controller.ui.listbox.filter_results()
+        if self.accepting:
+            self.controller.ui.statusbar.set_text('/' + self.pattern)
+
+    def insert_callback(self):
+        """ Add our callback to the UI filterer. """
+        return self.controller.ui.listbox.add_filter('search', self.check)
+
+    def remove_callback(self):
+        """ Remove our callback from the UI filterer.
+
+        Returns the callback if it was there.  Returns None if it was not.
+        """
+        return self.controller.ui.listbox.remove_filter('search')
+
+    def check(self, package):
+        """ This is a callback called by the UI when it wants to know if this
+        filter think it should include or exclude a given package from the
+        view.
+        """
+        return re.search(self.pattern, package.name)
 
     def start_search(self, key):
         """ Search | Filter packages with a regular expression. """
         if not self.controller.ui.listbox.initialized():
             return key
-        self.enabled, self.pattern = True, ''
-        self.filter_results()
+        self.accepting, self.pattern = True, ''
+        self.insert_callback()
 
-    def end_search(self, filter=True):
-        self.enabled, self.pattern = False, ''
-        if filter:
-            self.filter_results()
+    def end_search(self):
+        self.accepting, self.pattern = False, ''
         self.controller.ui.statusbar.set_text(self.controller.short_help())
 
     def keypress(self, key):
-        log('Searchable saw key %r' % key)
         if not self.controller.ui.listbox.initialized():
-            log('Searchable bailing: listbox not initialized.')
-            return key
-
-        # If we have not already started a search, then don't intercept keys.
-        if not self.enabled:
-            log('Searchable bailing: search not already in place.')
             return key
 
         if key == 'esc':
-            log('Searchable handling "esc" appropriately.')
             self.end_search()
+            if self.remove_callback():
+                self.trigger_filtration()
+                return None
+            else:
+                return key
+        elif not self.accepting:
+            # If we have not already started a search, then don't intercept
+            # keys further..
+            return key
         elif key == 'enter':
-            self.end_search(filter=False)
-        elif key == 'backspace' and self.enabled:
+            self.end_search()
+        elif key == 'backspace' and self.accepting:
             if self.pattern:
                 self.pattern = self.pattern[:-1]
             else:
                 self.end_search()
-            self.filter_results()
-        elif self.enabled:
+                self.remove_callback()
+            self.trigger_filtration()
+        elif self.accepting:
             self.pattern += key
-            self.filter_results()
+            self.trigger_filtration()
         else:
             return key  # unhandled
 

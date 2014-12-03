@@ -20,14 +20,11 @@
 from __future__ import print_function
 
 import copy
-import re
 
 import urwid
 
 import shipit.log
 import shipit.utils
-
-from shipit.log import log
 
 # TODO kill this, global state
 row_actions, batch_actions = None, None
@@ -128,6 +125,7 @@ class FilterableListBox(urwid.ListBox):
 
     def __init__(self, statusbar):
         self.statusbar = statusbar
+        self.filters = {}
         self.reference = []
         self.set_originals([])
         super(FilterableListBox, self).__init__(self.reference)
@@ -147,20 +145,28 @@ class FilterableListBox(urwid.ListBox):
 
     def set_originals(self, originals):
         self.originals = copy.copy(originals)
-        self.filter_results(searchmode=False, pattern='')
+        self.filter_results()
 
-    def filter_results(self, searchmode, pattern):
+    def add_filter(self, name, callback):
+        self.filters[name] = callback
+
+    def remove_filter(self, name):
+        return self.filters.pop(name, None)
+
+    def filter_results(self):
+        # Add in all the originals on which *all* callbacks agree
         for i, item in enumerate(self.originals):
-            if re.search(pattern, item.name):
-                if item not in self.reference:
-                    self.reference.insert(i, item)
+            if item in self.reference:
+                continue
+            if all([check(item) for check in self.filters.values()]):
+                self.reference.insert(i, item)
 
+        # Remove any with which *at least one* callback disagrees
         for item in list(self.reference):
-            if not re.search(pattern, item.name):
+            if item not in self.reference:
+                continue
+            if any([not check(item) for check in self.filters.values()]):
                 self.reference.remove(item)
-
-        if searchmode:
-            self.statusbar.set_text('/' + pattern)
 
 
 class MainUI(urwid.Frame):
@@ -169,7 +175,6 @@ class MainUI(urwid.Frame):
 
 
 def assemble_ui(config, fedmsg_config, model):
-    anitya_url = config['anitya_url']
     logsize = config['logsize']
 
     def basic_batch(func):
