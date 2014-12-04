@@ -29,6 +29,50 @@ import shipit.utils
 from shipit.log import log
 
 
+backends = {
+    'ftp.debian.org': 'Debian project',
+    'www.drupal.org': 'Drupal7',
+    'freecode.com': 'Freshmeat',
+    'github.com': 'Github',
+    'download.gnome.org': 'GNOME',
+    'ftp.gnu.org': 'GNU project',
+    'code.google.com': 'Google code',
+    'hackage.haskell.org': 'Hackage',
+    'launchpad.net': 'launchpad',
+    'www.npmjs.org': 'npmjs',
+    'packagist.org': 'Packagist',
+    'pear.php.net': 'PEAR',
+    'pecl.php.net': 'PECL',
+    'pypi.python.org': 'PyPI',
+    'rubygems.org': 'Rubygems',
+    'sourceforge.net': 'Sourceforge',
+}
+
+prefixes = [
+    'python-',
+    'php-',
+    'nodejs-',
+]
+
+easy_guesses = [
+    'Debian project',
+    'Drupal7',
+    'Freshmeat',
+    'Github',
+    'GNOME',
+    'GNU project',
+    'Google code',
+    'Hackage',
+    'launchpad',
+    'npmjs',
+    'PEAR',
+    'PECL',
+    'PyPI',
+    'Rubygems',
+    'Sourceforge',
+]
+
+
 class AnityaContext(base.BaseContext, base.Searchable):
     prompt = 'ANITYA'
 
@@ -97,7 +141,23 @@ class AnityaContext(base.BaseContext, base.Searchable):
             if idx:
                 url = '%s/project/%i' % (anitya_url, idx)
             else:
-                url = '%s/projects/search/?pattern=%s' % (anitya_url, row.name)
+                name = row.name
+                the_backend = None
+
+                # Try to guess at what backend it is...
+                for target, backend in backends.items():
+                    if target in row.package.pkgdb['upstream_url']:
+                        the_backend = backend
+                        break
+
+                # For these, we can get a pretty good guess at the upstream name
+                for guess in easy_guesses:
+                    if the_backend == guess:
+                        homepage = row.package.pkgdb['upstream_url']
+                        name = homepage.strip('/').split('/')[-1]
+                        break
+
+                url = '%s/projects/search/?pattern=%s' % (anitya_url, name)
             log("Opening %r" % url)
             webbrowser.open_new_tab(url)
 
@@ -105,50 +165,6 @@ class AnityaContext(base.BaseContext, base.Searchable):
         """ New | Add project to release-monitoring.org """
 
         anitya_url = self.anitya_url
-
-        # Try to guess at what backend to prefill...
-        backends = {
-            'ftp.debian.org': 'Debian project',
-            'www.drupal.org': 'Drupal7',
-            'freecode.com': 'Freshmeat',
-            'github.com': 'Github',
-            'download.gnome.org': 'GNOME',
-            'ftp.gnu.org': 'GNU project',
-            'code.google.com': 'Google code',
-            'hackage.haskell.org': 'Hackage',
-            'launchpad.net': 'launchpad',
-            'www.npmjs.org': 'npmjs',
-            'packagist.org': 'Packagist',
-            'pear.php.net': 'PEAR',
-            'pecl.php.net': 'PECL',
-            'pypi.python.org': 'PyPI',
-            'rubygems.org': 'Rubygems',
-            'sourceforge.net': 'Sourceforge',
-        }
-        # It's not always the case that these need removed, but often enough...
-        prefixes = [
-            'python-',
-            'php-',
-            'nodejs-',
-        ]
-        # For these, we can get a pretty good guess at the upstream name
-        easy_guesses = [
-            'Debian project',
-            'Drupal7',
-            'Freshmeat',
-            'Github',
-            'GNOME',
-            'GNU project',
-            'Google code',
-            'Hackage',
-            'launchpad',
-            'npmjs',
-            'PEAR',
-            'PECL',
-            'PyPI',
-            'Rubygems',
-            'Sourceforge',
-        ]
 
         for row in rows:
             data = dict(
@@ -158,15 +174,19 @@ class AnityaContext(base.BaseContext, base.Searchable):
                 package_name=row.package.pkgdb['name'],
             )
 
+            # Try to guess at what backend to prefill...
             for target, backend in backends.items():
                 if target in row.package.pkgdb['upstream_url']:
                     data['backend'] = backend
                     break
 
+            # It's not always the case that these need removed, but often
+            # enough...
             for prefix in prefixes:
                 if data['name'].startswith(prefix):
                     data['name'] = data['name'][len(prefix):]
 
+            # For these, we can get a pretty good guess at the upstream name
             for guess in easy_guesses:
                 if data['backend'] == guess:
                     data['name'] = data['homepage'].strip('/').split('/')[-1]
