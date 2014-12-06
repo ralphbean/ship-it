@@ -175,10 +175,11 @@ class AnityaContext(base.BaseContext, base.Searchable):
             )
 
             # Try to guess at what backend to prefill...
-            for target, backend in backends.items():
-                if target in row.package.pkgdb['upstream_url']:
-                    data['backend'] = backend
-                    break
+            if row.package.pkgdb.get('upstream_url'):
+                for target, backend in backends.items():
+                    if target in row.package.pkgdb['upstream_url']:
+                        data['backend'] = backend
+                        break
 
             # It's not always the case that these need removed, but often
             # enough...
@@ -187,9 +188,11 @@ class AnityaContext(base.BaseContext, base.Searchable):
                     data['name'] = data['name'][len(prefix):]
 
             # For these, we can get a pretty good guess at the upstream name
-            for guess in easy_guesses:
-                if data['backend'] == guess:
-                    data['name'] = data['homepage'].strip('/').split('/')[-1]
+            if 'backend' in data:
+                for guess in easy_guesses:
+                    if data['backend'] == guess:
+                        data['name'] = data['homepage']
+                        data['name'] = data['name'].strip('/').split('/')[-1]
 
             url = anitya_url + '/project/new?' + urllib.urlencode(data)
             log("Opening %r" % url)
