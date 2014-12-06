@@ -34,8 +34,10 @@ def initialize(config, fedmsg_config, ui, palette, model, controller):
 
     import shipit.utils
 
-    consumers = shipit.consumers.all_consumers
-    producers = shipit.producers.all_producers
+    consumers = [lambda hub: cls(hub, model)
+                 for cls in shipit.consumers.all_consumers]
+    producers = [lambda hub: cls(hub, model)
+                 for cls in shipit.producers.all_producers]
     hub = moksha.hub.CentralMokshaHub(fedmsg_config, consumers, producers)
 
     startup_routines = [

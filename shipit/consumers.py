@@ -18,6 +18,7 @@
 
 from __future__ import print_function
 
+import traceback
 import uuid
 
 import fedmsg.consumers
@@ -25,13 +26,53 @@ import fedmsg.consumers
 import shipit.log
 
 
+def log_errors(fn):
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except Exception:
+            for line in traceback.format_exc().strip().split('\n'):
+                shipit.log.log(line)
+    return wrapper
+
+
 class ShipitConsumer(fedmsg.consumers.FedmsgConsumer):
     config_key = unicode(uuid.uuid4())
     topic = '*'
 
+    def __init__(self, hub, model):
+        self.model = model
+        super(ShipitConsumer, self).__init__(hub)
+
+    @log_errors
     def consume(self, msg):
         topic, msg = msg['topic'], msg['body']
-        #shipit.log.log('received fedmsg %r' % topic)
+
+        # Just dev debugging
+        if 'anitya' in topic:
+            shipit.log.log('received fedmsg %r' % topic)
+
+        if 'anitya.project.map' in topic:
+            message = msg['msg']['message']
+            packagename = message['new']
+            if message['distro'] == 'Fedora' and packagename in self.model:
+                shipit.log.log('Setting upstream on %r' % packagename)
+                self.model[packagename].set_upstream(msg['msg']['project'])
+            else:
+                shipit.log.log('Did not set upstream.')
+        elif 'anitya.project.version' in topic:
+            package = None
+            for mapping in msg['msg']['message']['packages']:
+                packagename = mapping['package_name']
+                if mapping['distro'] == 'Fedora' and packagename in self.model:
+                    package = packagename
+                    break
+
+            if not package:
+                return
+
+            self.model[package].set_upstream(msg['msg']['project'])
+
 
 
 all_consumers = [ShipitConsumer]
