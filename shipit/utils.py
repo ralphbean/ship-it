@@ -21,10 +21,13 @@ from __future__ import print_function
 import webbrowser
 
 import twisted.internet.defer
+import twisted.internet.utils
 import txrequests
 import urwid
 
+import shipit.log
 import shipit.reactor
+import shipit.utils
 
 
 # Global state
@@ -53,6 +56,7 @@ def vimify():
     for key, value in vim_keys.items():
         urwid.command_map[key] = value
 
+
 def patch_webbrowser():
     """ Patch the python stdlib webbrowser module.
 
@@ -62,3 +66,20 @@ def patch_webbrowser():
     for nuisance in ['xdg-open', 'gvfs-open']:
         if nuisance in webbrowser._tryorder:
             webbrowser._tryorder.remove(nuisance)
+
+
+@twisted.internet.defer.inlineCallbacks
+def run(cmd, cwd=None):
+    yield shipit.log.log('(%s)$ %s' % (cwd, ' '.join(cmd)))
+
+    out, err, code = yield twisted.internet.utils.getProcessOutputAndValue(
+        cmd[0], args=cmd[1:], path=cwd)
+
+    if err:
+        yield shipit.log.log("stderr: %r" % err)
+
+    if code != 0:
+        yield shipit.log.log('ERROR:  return code %r' % code)
+        raise Exception
+
+    yield twisted.internet.defer.returnValue(out)

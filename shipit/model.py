@@ -23,8 +23,6 @@ import time
 
 import twisted.internet.defer
 
-from twisted.internet import utils
-
 import shipit.reactor
 import shipit.signals
 import shipit.utils
@@ -89,8 +87,8 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
         #    cmdline.append('--repoid=%s' % repoid)
 
         start = time.time()
-        yield log("Running %r" % ' '.join(cmdline))
-        stdout = yield utils.getProcessOutput(cmdline[0], cmdline[1:])
+        yield log("About to call into utils.run...")
+        stdout = yield shipit.utils.run(cmdline)
         delta = time.time() - start
         yield log("Done with repoquery in %is" % delta)
 
@@ -102,7 +100,6 @@ class PackageList(shipit.signals.AsyncNotifier, collections.OrderedDict):
                 self.signal('rawhide', name, self.nvr_dict[name])
 
         yield log("Done building nvr dict with %i items" % len(self.nvr_dict))
-
 
     @twisted.internet.defer.inlineCallbacks
     def load_pkgdb_packages(self):

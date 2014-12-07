@@ -47,11 +47,14 @@ class MasterController(object):
         import shipit.controllers.main
 
         import shipit.controllers.anitya
+        import shipit.controllers.build
         import shipit.controllers.help
 
         self.contexts = {
             'main': shipit.controllers.main.MainContext(self),
             'anitya': shipit.controllers.anitya.AnityaContext(self),
+            'rawhide': shipit.controllers.build.BuildContext(
+                self, branch='rawhide'),
             'help': shipit.controllers.help.HelpContext(self),
         }
         self.set_context('main')

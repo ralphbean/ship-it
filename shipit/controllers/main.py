@@ -36,6 +36,7 @@ class MainContext(base.BaseContext, base.Searchable):
             'esc': self.quit,
             '?': self.switch_help,
             'a': self.switch_anitya,
+            'b': self.switch_rawhide,
 
             'd': self.debug,
         })
@@ -54,6 +55,10 @@ class MainContext(base.BaseContext, base.Searchable):
     def switch_anitya(self, key, rows):
         """ Anitya | Enter anitya (release-monitoring.org) mode. """
         self.controller.set_context('anitya')
+
+    def switch_rawhide(self, key, rows):
+        """ Rawhide | Enter rawhide mode (scratch, koji, dist-git). """
+        self.controller.set_context('rawhide')
 
     def switch_help(self, key, rows):
         """ Help | Help on available commands. """

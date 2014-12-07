@@ -38,10 +38,20 @@ defaults = {
     # URLs
     'pkgdb_url': 'https://admin.fedoraproject.org/pkgdb',
     'anitya_url': 'https://release-monitoring.org',
+    'dist_git_url': 'http://pkgs.fedoraproject.org/cgit/{package}.git',
+
+    'koji_server': 'https://koji.fedoraproject.org/kojihub',
+    'koji_weburl': 'http://koji.fedoraproject.org/koji',
+
+    'koji_cert': os.path.expanduser('~/.fedora.cert'),
+    'koji_ca_cert': os.path.expanduser('~/.fedora-server-ca.cert'),
+
 }
 
 if 'BODHI_USER' in os.environ:
     defaults['username'] = os.environ['BODHI_USER']
+    defaults['git_userstring'] = '%s <%s@fedoraproject.org>' % (
+        defaults['username'], defaults['username'])
 
 
 def load_config():
@@ -55,6 +65,7 @@ def load_shipitrc_config():
     # Load common config from disk
     parser = configparser.ConfigParser()
     filename = os.path.expanduser('~/.config/shipit/shipitrc')
+    print("Reading", filename)
     if not parser.read([filename]):
         # If no file was read, let's create one and quit
         sys.exit(shipit.wizard.run(filename))
