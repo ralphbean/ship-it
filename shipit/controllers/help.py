@@ -28,10 +28,9 @@ import shipit.ui
 
 def doccols(section, key, doc):
     return urwid.Columns([
-        #(8, urwid.Text(kind, align='right')),
-        (7, urwid.Text(section, align='left')),
+        (7, urwid.Text(section, align='right')),
         (7, urwid.Text(key, align='center')),
-        (58, urwid.Text(doc, align='left')),
+        (65, urwid.Text(doc, align='left')),
     ], dividechars=1)
 
 
@@ -58,6 +57,7 @@ class HelpContext(shipit.controllers.BaseContext):
         ])
 
     def switch_main(self, key, rows):
+        """ Back | Close this help menu. """
         self.controller.ui.listbox.clear()
         self.controller.ui.listbox.set_originals(self.saved_originals)
         self.controller.ui.window.set_header(self.saved_header)

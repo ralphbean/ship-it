@@ -62,7 +62,7 @@ class MainContext(base.BaseContext, base.Searchable):
         self.controller.set_context('rawhide')
 
     def switch_help(self, key, rows):
-        """ Help | Help on available commands. """
+        """ Help | Help on available commands.. i.e., this menu """
         self.controller.set_context('help')
 
     @twisted.internet.defer.inlineCallbacks
