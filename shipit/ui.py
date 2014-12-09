@@ -29,7 +29,16 @@ import shipit.utils
 # TODO kill this, global state
 row_actions, batch_actions = None, None
 
-def cols(a, b, c, d):
+
+class BaseRow(urwid.WidgetWrap):
+    def keypress(self, size, key):
+        return key
+
+    def selectable(self):
+        return True
+
+
+def pkgcols(a, b, c, d):
     return urwid.Columns([
         (40, urwid.Text(a)),
         (5, urwid.Text(b, align='center')),
@@ -38,26 +47,22 @@ def cols(a, b, c, d):
     ], dividechars=1)
 
 
-class Row(urwid.WidgetWrap):
-
-    legend = cols(u'package', u'match', u'upstream', u'rawhide')
+class PackageRow(BaseRow):
+    legend = pkgcols(u'package', u'match', u'upstream', u'rawhide')
 
     def __init__(self, package):
         self.package = package
         self.name = package.pkgdb['name']
         loading = '(loading...)'
-        super(Row, self).__init__(urwid.AttrMap(
-            cols(self.name, u'', loading, loading), None, 'reversed'))
+        super(PackageRow, self).__init__(urwid.AttrMap(
+            pkgcols(self.name, u'', loading, loading), None, 'reversed'))
         if self.package.rawhide:
             self.set_rawhide(self.package.rawhide)
         if self.package.upstream:
             self.set_upstream(self.package.upstream)
 
     def __repr__(self):
-        return "<Row %r>" % self.name
-
-    def keypress(self, size, key):
-        return key
+        return "<PackageRow %r>" % self.name
 
     def set_rawhide(self, rawhide):
         self.rawhide = rawhide
@@ -99,9 +104,6 @@ class Row(urwid.WidgetWrap):
         self._w.original_widget.contents[column][0].set_text(match)
         return shipit.utils.noop()
 
-    def selectable(self):
-        return True
-
 
 class StatusBar(urwid.Text):
     """ One of the little one-line bar at the very bottom.  """
@@ -132,13 +134,6 @@ class FilterableListBox(urwid.ListBox):
 
     def __repr__(self):
         return "<FilterableListBox>"
-
-    def initialize(self, packages):
-        rows = [Row(package) for name, package in packages]
-        self.set_originals(rows)
-        for row, name, package in zip(rows, *zip(*packages)):
-            package.register('rawhide', None, row.set_rawhide)
-            package.register('upstream', None, row.set_upstream)
 
     def initialized(self):
         return bool(self.originals)
@@ -192,9 +187,15 @@ def assemble_ui(config, fedmsg_config, model):
     listbox = FilterableListBox(commandbar=commandbar)
 
     # Wire up some async update signals.  See shipit.signals.
-    model.register('pkgdb', None, listbox.initialize)
+    def initialize(packages):
+        rows = [PackageRow(package) for name, package in packages]
+        listbox.set_originals(rows)
+        for row, name, package in zip(rows, *zip(*packages)):
+            package.register('rawhide', None, row.set_rawhide)
+            package.register('upstream', None, row.set_upstream)
+    model.register('pkgdb', None, initialize)
 
-    window = urwid.Frame(listbox, header=Row.legend)
+    window = urwid.Frame(listbox, header=PackageRow.legend)
     main = MainUI(urwid.Frame(window, footer=logbox), footer=footer)
 
     # Hang these here for easy reference

@@ -18,9 +18,33 @@
 
 from __future__ import print_function
 
+import urwid
+
 import shipit.controllers
+import shipit.ui
 
 from shipit.log import log
+
+
+def doccols(a, b, c):
+    return urwid.Columns([
+        (12, urwid.Text(a, align='right')),
+        (12, urwid.Text(b, align='left')),
+        (50, urwid.Text(c, align='left')),
+    ], dividechars=2)
+
+
+class SectionRow(shipit.ui.BaseRow):
+    def __init__(self, section):
+        super(SectionRow, self).__init__(urwid.AttrMap(
+            doccols(section, u'', u''), None, 'reversed'))
+
+
+class DocRow(shipit.ui.BaseRow):
+    def __init__(self, key, docs):
+        super(DocRow, self).__init__(urwid.AttrMap(
+            doccols(key, *docs), None, 'reversed'))
+
 
 class HelpContext(shipit.controllers.BaseContext):
     prompt = 'HELP'
@@ -32,9 +56,24 @@ class HelpContext(shipit.controllers.BaseContext):
             'esc': self.switch_main,
         }
 
+    def switch_main(self, key, rows):
+        self.controller.ui.listbox.set_originals(self.saved_originals)
+        super(HelpContext, self).switch_main(key, rows)
+
     def assume_primacy(self):
         log('help assuming primacy')
-        #log('%s' % pprint.pformat(self.build_help_dict()))
+        self.saved_originals = self.controller.ui.listbox.originals
+
+        rows = []
+        help_dict = self.build_help_dict()
+        log("help dict is %r" % (help_dict,))
+        for kind, sections in help_dict.items():
+            for section, items in sections.items():
+                rows.append(SectionRow(section))
+                for key, docs in items.items():
+                    rows.append(DocRow(key, docs))
+
+        self.controller.ui.listbox.set_originals(rows)
 
     def build_help_dict(self):
         return self.controller.build_help_dict()
