@@ -206,6 +206,7 @@ def assemble_ui(config, fedmsg_config, model):
     main.filterbar = filterbar
     main.commandbar = commandbar
     main.listbox = listbox
+    main.window = window
 
     # TODO - someday make this configurable from shipitrc
     palette = [

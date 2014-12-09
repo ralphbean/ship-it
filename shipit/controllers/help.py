@@ -36,6 +36,8 @@ def doccols(section, key, doc):
 
 
 class DocRow(shipit.ui.BaseRow):
+    legend = doccols('mode', 'keys', 'documentation')
+
     def __init__(self, section, key, doc):
         self._selectable = not (section)
         super(DocRow, self).__init__(urwid.AttrMap(
@@ -58,10 +60,12 @@ class HelpContext(shipit.controllers.BaseContext):
     def switch_main(self, key, rows):
         self.controller.ui.listbox.clear()
         self.controller.ui.listbox.set_originals(self.saved_originals)
+        self.controller.ui.window.set_header(self.saved_header)
         super(HelpContext, self).switch_main(key, rows)
 
     def assume_primacy(self):
         self.saved_originals = self.controller.ui.listbox.originals
+        self.saved_header = self.controller.ui.window.header
 
         help_dict = self.build_help_dict()
         collapsed = collections.defaultdict(
@@ -81,6 +85,7 @@ class HelpContext(shipit.controllers.BaseContext):
 
         self.controller.ui.listbox.clear()
         self.controller.ui.listbox.set_originals(rows)
+        self.controller.ui.window.set_header(DocRow.legend)
 
     def build_help_dict(self):
         return self.controller.build_help_dict()
