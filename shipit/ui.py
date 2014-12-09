@@ -194,10 +194,8 @@ def assemble_ui(config, fedmsg_config, model):
     # Wire up some async update signals.  See shipit.signals.
     model.register('pkgdb', None, listbox.initialize)
 
-    right = urwid.Frame(listbox, header=Row.legend)
-    left = urwid.SolidFill('x')  # TODO -- eventually put a menu here
-    columns = urwid.Columns([(12, left), right], 2)
-    main = MainUI(urwid.Frame(columns, footer=logbox), footer=footer)
+    window = urwid.Frame(listbox, header=Row.legend)
+    main = MainUI(urwid.Frame(window, footer=logbox), footer=footer)
 
     # Hang these here for easy reference
     main.filterbar = filterbar
