@@ -76,10 +76,10 @@ class MasterController(object):
         context.keypress(key)  # Ignore the result
 
     def short_command_help(self):
-        return self._short_help(0)
+        return self._short_help('commands')
 
     def short_filter_help(self):
-        return self._short_help(1)
+        return self._short_help('filters')
 
     def _short_help(self, index):
         help_dict = self.build_help_dict()[index][self.context]
@@ -99,7 +99,10 @@ class MasterController(object):
         for name, context in self.contexts.items():
             for key, function in context.command_map.items():
                 doc = inspect.getdoc(function)
-                short, long = doc.split(' | ', 1)
+                if doc is None:
+                    short, long = "NoneType", "No help available."
+                else:
+                    short, long = doc.split(' | ', 1)
                 cmds[name][key] = (short, long)
 
         flts = collections.defaultdict(lambda: collections.defaultdict(dict))
@@ -109,7 +112,7 @@ class MasterController(object):
                 short, long = doc.split(' | ', 1)
                 flts[name][key] = (short, long)
 
-        return cmds, flts
+        return dict(commands=cmds, filters=flts)
 
 
 class BaseContext(object):
