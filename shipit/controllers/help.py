@@ -68,12 +68,15 @@ class HelpContext(shipit.controllers.BaseContext):
         self.saved_header = self.controller.ui.window.header
 
         help_dict = self.build_help_dict()
-        collapsed = collections.defaultdict(
-            lambda: collections.defaultdict(list))
+        collapsed = collections.OrderedDict()
         for kind, sections in help_dict.items():
             for section, items in sections.items():
+                if not section in collapsed:
+                    collapsed[section] = collections.OrderedDict()
                 for key, docs in items.items():
                     short, long = docs
+                    if not long in collapsed[section]:
+                        collapsed[section][long] = []
                     collapsed[section][long].append(key)
 
         rows = []
