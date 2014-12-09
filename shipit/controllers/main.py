@@ -41,10 +41,8 @@ class MainContext(base.BaseContext, base.Searchable):
             ('b', self.switch_rawhide),
             ('d', self.debug),
         ]))
-        self.filter_map.update(collections.OrderedDict([
-            ('s', self.add_silly),
-            ('r', self.remove_silly),
-        ]))
+        #self.filter_map.update(collections.OrderedDict([
+        #]))
 
     def assume_primacy(self):
         pass
@@ -72,15 +70,3 @@ class MainContext(base.BaseContext, base.Searchable):
             yield log('pkgdb: %r' % row.package.pkgdb)
             yield log('rawhide: %r' % (row.package.rawhide,))
             yield log('upstream: %r' % row.package.upstream)
-
-    def add_silly(self, key):
-        """ Add Silly Debug Filter | Install a silly test filter. """
-        def callback(package):
-            return package.name.startswith('foobaz')
-        self.controller.ui.listbox.add_filter('silly', callback)
-        self.controller.ui.listbox.filter_results()
-
-    def remove_silly(self, key):
-        """ Remove Silliness | Remove the silly test filter. """
-        self.controller.ui.listbox.remove_filter('silly')
-        self.controller.ui.listbox.filter_results()
