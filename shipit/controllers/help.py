@@ -18,23 +18,77 @@
 
 from __future__ import print_function
 
-import shipit.controllers
+import collections
 
-from shipit.log import log
+import urwid
+
+import shipit.controllers
+import shipit.ui
+
+
+def doccols(section, key, doc):
+    return urwid.Columns([
+        (7, urwid.Text(section, align='right')),
+        (7, urwid.Text(key, align='center')),
+        (65, urwid.Text(doc, align='left')),
+    ], dividechars=1)
+
+
+class DocRow(shipit.ui.BaseRow):
+    legend = doccols('mode', 'keys', 'documentation')
+
+    def __init__(self, section, key, doc):
+        self._selectable = not (section)
+        super(DocRow, self).__init__(urwid.AttrMap(
+            doccols(section, key, doc), None, 'reversed'))
+
+    def selectable(self):
+        return self._selectable
+
 
 class HelpContext(shipit.controllers.BaseContext):
     prompt = 'HELP'
 
     def __init__(self, *args, **kwargs):
         super(HelpContext, self).__init__(*args, **kwargs)
-        self.command_map = {
-            'q': self.switch_main,
-            'esc': self.switch_main,
-        }
+        self.command_map = collections.OrderedDict([
+            ('q', self.switch_main),
+            ('esc', self.switch_main),
+        ])
+
+    def switch_main(self, key, rows):
+        """ Back | Close this help menu. """
+        self.controller.ui.listbox.clear()
+        self.controller.ui.listbox.set_originals(self.saved_originals)
+        self.controller.ui.window.set_header(self.saved_header)
+        super(HelpContext, self).switch_main(key, rows)
 
     def assume_primacy(self):
-        log('help assuming primacy')
-        #log('%s' % pprint.pformat(self.build_help_dict()))
+        self.saved_originals = self.controller.ui.listbox.originals
+        self.saved_header = self.controller.ui.window.header
+
+        help_dict = self.build_help_dict()
+        collapsed = collections.OrderedDict()
+        for kind, sections in help_dict.items():
+            for section, items in sections.items():
+                if not section in collapsed:
+                    collapsed[section] = collections.OrderedDict()
+                for key, docs in items.items():
+                    short, long = docs
+                    if not long in collapsed[section]:
+                        collapsed[section][long] = []
+                    collapsed[section][long].append(key)
+
+        rows = []
+        for section in collapsed:
+            rows.append(DocRow(section, '', ''))
+            for doc in collapsed[section]:
+                keys = "|".join(collapsed[section][doc])
+                rows.append(DocRow('', keys, doc))
+
+        self.controller.ui.listbox.clear()
+        self.controller.ui.listbox.set_originals(rows)
+        self.controller.ui.window.set_header(DocRow.legend)
 
     def build_help_dict(self):
         return self.controller.build_help_dict()

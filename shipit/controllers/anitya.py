@@ -18,6 +18,8 @@
 
 from __future__ import print_function
 
+import collections
+
 import urllib
 import webbrowser
 
@@ -79,18 +81,17 @@ class AnityaContext(base.BaseContext, base.Searchable):
     def __init__(self, *args, **kwargs):
         super(AnityaContext, self).__init__(*args, **kwargs)
         self.anitya_url = self.controller.config['anitya_url']
-        self.command_map.update({
-            'q': self.switch_main,
-            'esc': self.switch_main,
-
-            'o': self.open_anitya,
-            'n': self.new_anitya,
-            'c': self.check_anitya,
-        })
-        self.filter_map.update({
-            'm': self.toggle_mismatch_filter,
-            'a': self.toggle_missing_filter,
-        })
+        self.command_map.update(collections.OrderedDict([
+            ('q', self.switch_main),
+            ('esc', self.switch_main),
+            ('o', self.open_anitya),
+            ('n', self.new_anitya),
+            ('c', self.check_anitya),
+        ]))
+        self.filter_map.update(collections.OrderedDict([
+            ('m', self.toggle_mismatch_filter),
+            ('a', self.toggle_missing_filter),
+        ]))
 
     def assume_primacy(self):
         log('anitya assuming primacy')

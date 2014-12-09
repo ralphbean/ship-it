@@ -41,9 +41,9 @@ def initialize(config, fedmsg_config, ui, palette, model, controller):
     hub = moksha.hub.CentralMokshaHub(fedmsg_config, consumers, producers)
 
     startup_routines = [
-        model.build_nvr_dict,
-        model.load_pkgdb_packages,
-        #model.fake_load_pkgdb_packages,
+        #model.build_nvr_dict,
+        #model.load_pkgdb_packages,
+        model.fake_load_pkgdb_packages,
     ]
     for routine in startup_routines:
         reactor.callWhenRunning(routine)

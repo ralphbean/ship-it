@@ -18,6 +18,8 @@
 
 from __future__ import print_function
 
+import collections
+
 import urwid
 import twisted.internet.defer
 
@@ -31,19 +33,16 @@ class MainContext(base.BaseContext, base.Searchable):
 
     def __init__(self, *args, **kwargs):
         super(MainContext, self).__init__(*args, **kwargs)
-        self.command_map.update({
-            'q': self.quit,
-            'esc': self.quit,
-            '?': self.switch_help,
-            'a': self.switch_anitya,
-            'b': self.switch_rawhide,
-
-            'd': self.debug,
-        })
-        self.filter_map.update({
-            's': self.add_silly,
-            'r': self.remove_silly,
-        })
+        self.command_map.update(collections.OrderedDict([
+            ('q', self.quit),
+            ('esc', self.quit),
+            ('?', self.switch_help),
+            ('a', self.switch_anitya),
+            ('b', self.switch_rawhide),
+            ('d', self.debug),
+        ]))
+        #self.filter_map.update(collections.OrderedDict([
+        #]))
 
     def assume_primacy(self):
         pass
@@ -61,7 +60,7 @@ class MainContext(base.BaseContext, base.Searchable):
         self.controller.set_context('rawhide')
 
     def switch_help(self, key, rows):
-        """ Help | Help on available commands. """
+        """ Help | Help on available commands.. i.e., this menu """
         self.controller.set_context('help')
 
     @twisted.internet.defer.inlineCallbacks
@@ -71,15 +70,3 @@ class MainContext(base.BaseContext, base.Searchable):
             yield log('pkgdb: %r' % row.package.pkgdb)
             yield log('rawhide: %r' % (row.package.rawhide,))
             yield log('upstream: %r' % row.package.upstream)
-
-    def add_silly(self, key):
-        """ Add Silly Debug Filter | Install a silly test filter. """
-        def callback(package):
-            return package.name.startswith('foobaz')
-        self.controller.ui.listbox.add_filter('silly', callback)
-        self.controller.ui.listbox.filter_results()
-
-    def remove_silly(self, key):
-        """ Remove Silliness | Remove the silly test filter. """
-        self.controller.ui.listbox.remove_filter('silly')
-        self.controller.ui.listbox.filter_results()
