@@ -102,14 +102,14 @@ class MasterController(object):
                 if doc is None:
                     short, long = "NoneType", "No help available."
                 else:
-                    short, long = doc.split(' | ', 1)
+                    short, long = map(str.strip, doc.split(' | ', 1))
                 cmds[name][key] = (short, long)
 
         flts = collections.defaultdict(lambda: collections.defaultdict(dict))
         for name, context in self.contexts.items():
             for key, function in context.filter_map.items():
                 doc = inspect.getdoc(function)
-                short, long = doc.split(' | ', 1)
+                short, long = map(str.strip, doc.split(' | ', 1))
                 flts[name][key] = (short, long)
 
         return dict(commands=cmds, filters=flts)
@@ -121,8 +121,8 @@ class BaseContext(object):
 
     def __init__(self, controller, *args, **kwargs):
         self.controller = controller
-        self.command_map = {}
-        self.filter_map = {}
+        self.command_map = collections.OrderedDict()
+        self.filter_map = collections.OrderedDict()
         super(BaseContext, self).__init__(*args, **kwargs)
 
     @abc.abstractmethod
@@ -186,9 +186,9 @@ class Searchable(Mixin):
 
         super(Searchable, self).__init__(*args, **kwargs)
 
-        self.filter_map.update({
-            '/': self.start_search,
-        })
+        self.filter_map.update(collections.OrderedDict([
+            ('/', self.start_search),
+        ]))
 
     def trigger_filtration(self):
         """ Tell the UI to reconsider its list of filter callbacks. """
@@ -218,6 +218,7 @@ class Searchable(Mixin):
             return key
         self.accepting, self.pattern = True, ''
         self.insert_callback()
+        self.trigger_filtration()
 
     def end_search(self):
         self.accepting, self.pattern = False, ''

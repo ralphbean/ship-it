@@ -18,6 +18,8 @@
 
 from __future__ import print_function
 
+import collections
+
 import urwid
 import twisted.internet.defer
 
@@ -31,19 +33,18 @@ class MainContext(base.BaseContext, base.Searchable):
 
     def __init__(self, *args, **kwargs):
         super(MainContext, self).__init__(*args, **kwargs)
-        self.command_map.update({
-            'q': self.quit,
-            'esc': self.quit,
-            '?': self.switch_help,
-            'a': self.switch_anitya,
-            'b': self.switch_rawhide,
-
-            'd': self.debug,
-        })
-        self.filter_map.update({
-            's': self.add_silly,
-            'r': self.remove_silly,
-        })
+        self.command_map.update(collections.OrderedDict([
+            ('q', self.quit),
+            ('esc', self.quit),
+            ('?', self.switch_help),
+            ('a', self.switch_anitya),
+            ('b', self.switch_rawhide),
+            ('d', self.debug),
+        ]))
+        self.filter_map.update(collections.OrderedDict([
+            ('s', self.add_silly),
+            ('r', self.remove_silly),
+        ]))
 
     def assume_primacy(self):
         pass

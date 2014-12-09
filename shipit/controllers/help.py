@@ -18,32 +18,31 @@
 
 from __future__ import print_function
 
+import collections
+
 import urwid
 
 import shipit.controllers
 import shipit.ui
 
-from shipit.log import log
 
-
-def doccols(a, b, c):
+def doccols(section, key, doc):
     return urwid.Columns([
-        (12, urwid.Text(a, align='right')),
-        (12, urwid.Text(b, align='left')),
-        (50, urwid.Text(c, align='left')),
-    ], dividechars=2)
-
-
-class SectionRow(shipit.ui.BaseRow):
-    def __init__(self, section):
-        super(SectionRow, self).__init__(urwid.AttrMap(
-            doccols(section, u'', u''), None, 'reversed'))
+        #(8, urwid.Text(kind, align='right')),
+        (7, urwid.Text(section, align='left')),
+        (7, urwid.Text(key, align='center')),
+        (58, urwid.Text(doc, align='left')),
+    ], dividechars=1)
 
 
 class DocRow(shipit.ui.BaseRow):
-    def __init__(self, key, docs):
+    def __init__(self, section, key, doc):
+        self._selectable = not (section)
         super(DocRow, self).__init__(urwid.AttrMap(
-            doccols(key, *docs), None, 'reversed'))
+            doccols(section, key, doc), None, 'reversed'))
+
+    def selectable(self):
+        return self._selectable
 
 
 class HelpContext(shipit.controllers.BaseContext):
@@ -51,10 +50,10 @@ class HelpContext(shipit.controllers.BaseContext):
 
     def __init__(self, *args, **kwargs):
         super(HelpContext, self).__init__(*args, **kwargs)
-        self.command_map = {
-            'q': self.switch_main,
-            'esc': self.switch_main,
-        }
+        self.command_map = collections.OrderedDict([
+            ('q', self.switch_main),
+            ('esc', self.switch_main),
+        ])
 
     def switch_main(self, key, rows):
         self.controller.ui.listbox.clear()
@@ -64,13 +63,21 @@ class HelpContext(shipit.controllers.BaseContext):
     def assume_primacy(self):
         self.saved_originals = self.controller.ui.listbox.originals
 
-        rows = []
         help_dict = self.build_help_dict()
+        collapsed = collections.defaultdict(
+            lambda: collections.defaultdict(list))
         for kind, sections in help_dict.items():
             for section, items in sections.items():
-                rows.append(SectionRow(section))
                 for key, docs in items.items():
-                    rows.append(DocRow(key, docs))
+                    short, long = docs
+                    collapsed[section][long].append(key)
+
+        rows = []
+        for section in collapsed:
+            rows.append(DocRow(section, '', ''))
+            for doc in collapsed[section]:
+                keys = "|".join(collapsed[section][doc])
+                rows.append(DocRow('', keys, doc))
 
         self.controller.ui.listbox.clear()
         self.controller.ui.listbox.set_originals(rows)

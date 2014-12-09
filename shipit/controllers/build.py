@@ -18,6 +18,7 @@
 
 from __future__ import print_function
 
+import collections
 import os
 import shutil
 import tempfile
@@ -50,14 +51,14 @@ class BuildContext(base.BaseContext, base.Searchable):
         }[self.branch]
 
         super(BuildContext, self).__init__(controller, *args, **kwargs)
-        self.command_map.update({
-            'q': self.switch_main,
-            'esc': self.switch_main,
+        self.command_map.update(collections.OrderedDict([
+            ('q', self.switch_main),
+            ('esc', self.switch_main),
 
-            'r': self.open_scratch_build,
-        })
-        self.filter_map.update({
-        })
+            ('r', self.open_scratch_build),
+        ]))
+        #self.filter_map.update({
+        #})
 
     def assume_primacy(self):
         log('build %r assuming primacy' % self.branch)
