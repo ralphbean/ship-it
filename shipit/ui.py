@@ -148,6 +148,10 @@ class FilterableListBox(urwid.ListBox):
     def remove_filter(self, name):
         return self.filters.pop(name, None)
 
+    def clear(self):
+        while self.reference:
+            self.reference.pop()
+
     def filter_results(self):
         # Add in all the originals on which *all* callbacks agree
         for i, item in enumerate(self.originals):

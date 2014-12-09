@@ -57,22 +57,22 @@ class HelpContext(shipit.controllers.BaseContext):
         }
 
     def switch_main(self, key, rows):
+        self.controller.ui.listbox.clear()
         self.controller.ui.listbox.set_originals(self.saved_originals)
         super(HelpContext, self).switch_main(key, rows)
 
     def assume_primacy(self):
-        log('help assuming primacy')
         self.saved_originals = self.controller.ui.listbox.originals
 
         rows = []
         help_dict = self.build_help_dict()
-        log("help dict is %r" % (help_dict,))
         for kind, sections in help_dict.items():
             for section, items in sections.items():
                 rows.append(SectionRow(section))
                 for key, docs in items.items():
                     rows.append(DocRow(key, docs))
 
+        self.controller.ui.listbox.clear()
         self.controller.ui.listbox.set_originals(rows)
 
     def build_help_dict(self):
