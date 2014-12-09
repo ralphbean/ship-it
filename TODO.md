@@ -2,12 +2,12 @@
 - [x] Distinguish between filters and commands.
 - [x] Add mass actions back in.
 - [x] Implement the shipitrc wizard
-- [ ] Silence moksha and fedmsg warnings at startup, for the love of god.
-- [ ] Implement some assume_primary stuff for contexts
+- [x] Silence moksha and fedmsg warnings at startup, for the love of god.
+- [x] Implement some assume_primary stuff for contexts
 - [ ] List pkgdb monitored status
 - [ ] Allow changing pkgdb monitored status
 - [ ] List anitya-related bug in the UI
-- [ ] Command to kick off bumped scratch build.
+- [x] Command to kick off bumped scratch build.
 - [ ] Make fedmsg update the UI when it fails or succeeds
 - [ ] Command to commit, push, and kick of real rawhide build.
 - [ ] Make fedmsg update the UI when it fails or succeeds.
