@@ -17,3 +17,32 @@ The purpose of this tool is to automate the tasks that annoy me:
 - etc...
 
 I've done it by hand too many times.
+
+Warning
+=======
+
+This is pre-alpha software.  It kind of works, but it's still too early to ship it.
+
+Try it out
+==========
+
+Set up a Python virtualenv with system packages available::
+
+    $ virtualenv --system-site-packages myenv
+    $ source myenv/bin/activate
+
+Install the requirements::
+
+    $ pip install -r requirements.txt
+
+Setup the package::
+
+    $ python setup.py develop
+
+And run it!
+
+::
+
+    $ shipit
+
+See the commands-ideas.txt file for.. some ideas.
